@@ -4,7 +4,7 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Build Status
 
-Verified locally on 2026-08-30 with Elixir 1.19 / Erlang OTP 29:
+Verified locally on 2026-08-30 with Elixir 1.20.4 / Erlang OTP 29:
 
 ```
 mix compile --warnings-as-errors   clean
