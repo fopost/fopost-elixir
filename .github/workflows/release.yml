@@ -1,0 +1,53 @@
+name: Release
+
+# Tag the commit v<version>, matching @version in mix.exs, e.g. v0.1.0.
+# Requires the repository secret HEX_API_KEY, generated with `mix hex.user key generate`.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Gates publishing behind a dedicated environment, so commit access alone does not
+    # grant the ability to push a release to Hex.
+    environment:
+      name: hex
+      url: https://hex.pm/packages/fopost
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.4'
+          otp-version: '27.3'
+
+      - run: mix deps.get
+
+      - name: Verify the tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(mix run --no-start -e 'IO.write(Mix.Project.config()[:version])')
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "::error::mix.exs is $VERSION but the tag is $TAG"
+            exit 1
+          fi
+
+      - run: mix format --check-formatted
+      - run: mix credo --strict
+      - run: mix test
+        env:
+          MIX_ENV: test
+
+      - name: Publish to Hex
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: mix hex.publish --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
