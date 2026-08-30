@@ -161,3 +161,28 @@ defmodule FoPost.AutomationStats do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.AutomationTrigger do
+  @moduledoc """
+  The run a webhook trigger started.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:run_id, :triggered, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      run_id: fields["run_id"],
+      triggered: fields["triggered"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

@@ -51,23 +51,49 @@ defmodule FoPost.Model do
 
   # A key the caller never passed is left out of the body entirely, so a PUT stays a
   # partial update. A key passed as nil is sent as null, which is how a field is cleared.
+  #
+  # An entry is either an atom, which is sent under its own name, or a
+  # {atom, "wireName"} pair for the endpoints that expect camelCase.
   def take_body(opts, keys) do
     Enum.reduce(keys, %{}, fn key, body ->
-      case Keyword.fetch(opts, key) do
-        {:ok, value} -> Map.put(body, Atom.to_string(key), value)
+      {name, wire} = wire_key(key)
+
+      case Keyword.fetch(opts, name) do
+        {:ok, value} -> Map.put(body, wire, value)
         :error -> body
       end
     end)
   end
 
+  # Query parameters follow the same rule, except that a nil is dropped rather than sent:
+  # there is no such thing as clearing a filter that was never applied.
   def take_params(opts, keys) do
-    opts
-    |> Keyword.take(keys)
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    keys
+    |> Enum.reduce([], fn key, params -> put_param(params, opts, key) end)
+    |> Enum.reverse()
+  end
+
+  def camel(key) do
+    [first | rest] = String.split(to_string(key), "_")
+
+    Enum.join([first | Enum.map(rest, &String.capitalize/1)])
   end
 
   def put_present(map, _key, nil), do: map
   def put_present(map, key, value), do: Map.put(map, key, value)
+
+  defp put_param(params, opts, key) do
+    {name, wire} = wire_key(key)
+
+    case Keyword.fetch(opts, name) do
+      {:ok, nil} -> params
+      {:ok, value} -> [{wire, value} | params]
+      :error -> params
+    end
+  end
+
+  defp wire_key({name, wire}), do: {name, wire}
+  defp wire_key(name), do: {name, Atom.to_string(name)}
 
   defp naive_datetime(value) do
     case NaiveDateTime.from_iso8601(value) do
