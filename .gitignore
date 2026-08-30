@@ -1,0 +1,22 @@
+# Build artefacts
+/_build/
+/cover/
+/deps/
+/doc/
+/.fetch
+erl_crash.dump
+*.ez
+*.beam
+
+# Generated package
+/fopost-*.tar
+
+# Dialyzer
+/priv/plts/*.plt
+/priv/plts/*.plt.hash
+
+# Editors and language servers
+/.elixir_ls/
+/.lexical/
+/.vscode/
+.DS_Store
