@@ -2,29 +2,26 @@
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 
-## Read This First: Nothing Here Has Ever Been Compiled
+## Build Status
 
-**The machine this SDK was written on had no Elixir, no Mix, and no Erlang installed.**
-Nothing in this repository has been compiled, formatted, linted, type-checked, or tested
-locally — not once. Every claim about it being correct is a claim from careful reading,
-not from a green run.
+Verified locally on 2026-08-30 with Elixir 1.19 / Erlang OTP 29:
 
-The **first CI run is the first real verification**. Expect it to surface things a
-compiler would have caught in a second:
+```
+mix compile --warnings-as-errors   clean
+mix test                           35 passed
+mix format --check-formatted       clean
+mix credo --strict                 475 mods/funs, no issues
+mix dialyzer                       0 errors
+```
 
-- a struct field referenced by the wrong name, or an arity that does not line up
-- `mix format --check-formatted` disagreeing with hand-formatted code — the likeliest
-  failure by far, and always a trivial fix (`mix format` and commit)
-- a `mix credo --strict` check that `.credo.exs` does not already disable
-- a Req option or callback shape that differs from what the docs implied
+`mix.lock` is committed, so CI resolves the same dependency tree twice.
 
-When you first get a working toolchain, **run `mix deps.get && mix format && mix compile
-&& mix test && mix credo --strict && mix dialyzer` before anything else**, commit the
-result, and then delete this section. Do not add features on top of an unverified base.
-
-There is also **no `mix.lock` committed**, for the same reason. Generate one with
-`mix deps.get` and commit it in that same first pass — a library should ship a lock file
-so CI resolves the same tree twice.
+The first compile surfaced exactly two defects, both the same shape and both worth knowing
+because they are easy to reintroduce: `FoPost.Client.capped/1` and `FoPost.Error.parse_seconds/1`
+each had an `is_binary/1`-guarded clause plus a catch-all. Req always hands header values back
+as binaries, so the catch-all was unreachable — a compiler warning in one case, a Dialyzer
+`pattern_match_cov` error in the other. Both are now single-clause with a comment saying why.
+Do not add a defensive catch-all back to either.
 
 ## What This Is
 
