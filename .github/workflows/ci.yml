@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: '1.15.8'
+            otp: '25.3'
+          - elixir: '1.16.3'
+            otp: '26.2'
+          - elixir: '1.17.3'
+            otp: '27.2'
+          - elixir: '1.18.4'
+            otp: '27.3'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-test-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('mix.exs') }}
+          restore-keys: mix-test-${{ matrix.elixir }}-${{ matrix.otp }}-
+
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test
+
+  lint:
+    name: Format and Credo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.4'
+          otp-version: '27.3'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-dev-1.18.4-27.3-${{ hashFiles('mix.exs') }}
+          restore-keys: mix-dev-1.18.4-27.3-
+
+      - run: mix deps.get
+      - run: mix format --check-formatted
+      - run: mix credo --strict
+
+  dialyzer:
+    name: Dialyzer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.4'
+          otp-version: '27.3'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-dev-1.18.4-27.3-${{ hashFiles('mix.exs') }}
+          restore-keys: mix-dev-1.18.4-27.3-
+
+      # The PLT is the expensive part and only changes with the toolchain or the deps.
+      - uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: plt-1.18.4-27.3-${{ hashFiles('mix.exs') }}
+          restore-keys: plt-1.18.4-27.3-
+
+      - run: mix deps.get
+      - run: mix dialyzer --plt
+      - run: mix dialyzer --format github
