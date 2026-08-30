@@ -160,12 +160,11 @@ defmodule FoPost.Error do
     end
   end
 
-  defp parse_seconds(value) when is_binary(value) do
+  # Req always hands header values back as binaries, so no catch-all clause is reachable here.
+  defp parse_seconds(value) do
     case Integer.parse(String.trim(value)) do
       {seconds, ""} when seconds > 0 -> seconds
       _other -> nil
     end
   end
-
-  defp parse_seconds(_value), do: nil
 end

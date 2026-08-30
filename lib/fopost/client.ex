@@ -139,14 +139,13 @@ defmodule FoPost.Client do
     end
   end
 
-  defp capped(value) when is_binary(value) do
+  # Req always hands header values back as binaries, so no catch-all clause is reachable here.
+  defp capped(value) do
     case Integer.parse(String.trim(value)) do
       {seconds, ""} when seconds > @max_retry_after -> Integer.to_string(@max_retry_after)
       _other -> value
     end
   end
-
-  defp capped(value), do: value
 
   defp build(client, method, path, opts) do
     [
