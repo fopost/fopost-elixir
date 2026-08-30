@@ -11,6 +11,8 @@ defmodule FoPost.Analytics do
     * `:limit`, `:page` — where the endpoint paginates
     * `:sort`, `:label` — where the endpoint ranks or groups
 
+  For example:
+
       {:ok, overview} = FoPost.Analytics.overview(client, workspace_id: id, days: 30)
       overview.total_followers
   """
