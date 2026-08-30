@@ -9,7 +9,7 @@
 # Publishing answers when delivery is queued, not when the post is live, so the script
 # polls the deliveries once at the end to show where each account got to.
 
-unless Code.ensure_loaded?(FoPost) do
+if not Code.ensure_loaded?(FoPost) do
   Mix.install([{:fopost, "~> 0.1"}])
 end
 
