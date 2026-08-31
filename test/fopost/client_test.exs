@@ -67,7 +67,7 @@ defmodule FoPost.ClientTest do
       TestSupport.json(conn, 402, %{
         "error" => "subscription_required",
         "message" => "No active subscription",
-        "upgrade_url" => "https://app.fopost.com/billing"
+        "upgrade_url" => "https://fopost.com/dashboard/billing"
       })
     end)
 
@@ -75,7 +75,7 @@ defmodule FoPost.ClientTest do
 
     assert {:error, error} = FoPost.Posts.create(client, workspace_id: "ws_1", content: "x")
     assert Error.payment_required?(error)
-    assert error.upgrade_url == "https://app.fopost.com/billing"
+    assert error.upgrade_url == "https://fopost.com/dashboard/billing"
   end
 
   test "retries a 429 and reports the wait it was asked for", %{bypass: bypass} do
