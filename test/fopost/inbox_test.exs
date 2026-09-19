@@ -142,4 +142,48 @@ defmodule FoPost.InboxTest do
     assert decision.id == 42
     assert decision.outcome == "sent"
   end
+
+  test "items decode the action state and capability flags", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/inbox", fn conn ->
+      TestSupport.json(conn, 200, %{
+        "data" => [
+          %{
+            "id" => "item_1",
+            "liked" => true,
+            "pinned" => false,
+            "reaction" => "❤",
+            "editedAt" => "2026-09-01T12:00:00Z",
+            "canLike" => true,
+            "canPin" => true,
+            "canEdit" => true,
+            "canReact" => true,
+            "canSendMedia" => false,
+            "canQuickReply" => false,
+            "canPrivateReply" => true
+          }
+        ],
+        "meta" => %{"page" => 1, "perPage" => 20, "total" => 1}
+      })
+    end)
+
+    assert {:ok, %{data: [item]}} = Inbox.list(TestSupport.client(bypass))
+    assert item.liked
+    refute item.pinned
+    assert item.reaction == "❤"
+    assert item.edited_at == ~U[2026-09-01 12:00:00Z]
+    assert item.can_like and item.can_pin and item.can_edit and item.can_react
+    refute item.can_send_media or item.can_quick_reply
+    assert item.can_private_reply
+  end
+
+  test "accounts decode canStartConversation", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/inbox/accounts", fn conn ->
+      TestSupport.json(conn, 200, %{
+        "data" => [%{"id" => "acc_1", "dmSupported" => true, "canStartConversation" => true}]
+      })
+    end)
+
+    assert {:ok, [account]} = Inbox.accounts(TestSupport.client(bypass))
+    assert account.can_start_conversation
+  end
 end
