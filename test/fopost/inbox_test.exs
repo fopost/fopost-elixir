@@ -186,4 +186,33 @@ defmodule FoPost.InboxTest do
     assert {:ok, [account]} = Inbox.accounts(TestSupport.client(bypass))
     assert account.can_start_conversation
   end
+
+  test "like, unlike, pin, and unpin post to their action path", %{bypass: bypass} do
+    for action <- ["like", "unlike", "pin", "unpin"] do
+      Bypass.expect_once(bypass, "POST", "/v1/inbox/item_1/" <> action, fn conn ->
+        TestSupport.json(conn, 200, %{"data" => %{"id" => "item_1", "liked" => true}})
+      end)
+    end
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %{id: "item_1", liked: true}} = Inbox.like(client, "item_1")
+    assert {:ok, %{id: "item_1"}} = Inbox.unlike(client, "item_1")
+    assert {:ok, %{id: "item_1"}} = Inbox.pin(client, "item_1")
+    assert {:ok, %{id: "item_1"}} = Inbox.unpin(client, "item_1")
+  end
+
+  test "react sends the reaction, and nil as null to remove it", %{bypass: bypass} do
+    Bypass.expect(bypass, "POST", "/v1/inbox/item_1/react", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      reaction = Jason.decode!(raw) |> Map.fetch!("reaction")
+
+      TestSupport.json(conn, 200, %{"data" => %{"id" => "item_1", "reaction" => reaction}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %{reaction: "❤"}} = Inbox.react(client, "item_1", "❤")
+    assert {:ok, %{reaction: nil}} = Inbox.react(client, "item_1", nil)
+  end
 end

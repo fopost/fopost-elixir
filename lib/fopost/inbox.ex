@@ -239,6 +239,45 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
+  Likes an item on the platform (an upvote on Reddit, a favourite on Mastodon). Only where
+  `:can_like` is true. Also needs the `publish` scope.
+  """
+  @spec like(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def like(client, id), do: action(client, id, "like")
+
+  @doc """
+  Removes our like. Only where `:can_like` is true. Also needs the `publish` scope.
+  """
+  @spec unlike(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def unlike(client, id), do: action(client, id, "unlike")
+
+  @doc """
+  Pins our own comment. Only where `:can_pin` is true. Also needs the `publish` scope.
+  """
+  @spec pin(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def pin(client, id), do: action(client, id, "pin")
+
+  @doc """
+  Unpins our own comment. Only where `:can_pin` is true. Also needs the `publish` scope.
+  """
+  @spec unpin(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def unpin(client, id), do: action(client, id, "unpin")
+
+  @doc """
+  Reacts to a message with an emoji (at most 32 characters); `nil` removes ours. Only where
+  `:can_react` is true. Also needs the `publish` scope.
+  """
+  @spec react(Client.t(), String.t(), String.t() | nil) ::
+          {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def react(client, id, reaction) do
+    body = %{"reaction" => reaction}
+
+    with {:ok, data} <- Client.request(client, :post, path(id, "react"), json: body) do
+      {:ok, InboxItem.from_map(data)}
+    end
+  end
+
+  @doc """
   Replies an automation or the agent drafted that a person still has to send.
   """
   @spec approvals(Client.t(), keyword()) ::
@@ -314,6 +353,21 @@ defmodule FoPost.Inbox do
   @doc "Same as `delete/2`, but raises `FoPost.Error`."
   def delete!(client, id), do: Result.unwrap!(delete(client, id))
 
+  @doc "Same as `like/2`, but raises `FoPost.Error`."
+  def like!(client, id), do: Result.unwrap!(like(client, id))
+
+  @doc "Same as `unlike/2`, but raises `FoPost.Error`."
+  def unlike!(client, id), do: Result.unwrap!(unlike(client, id))
+
+  @doc "Same as `pin/2`, but raises `FoPost.Error`."
+  def pin!(client, id), do: Result.unwrap!(pin(client, id))
+
+  @doc "Same as `unpin/2`, but raises `FoPost.Error`."
+  def unpin!(client, id), do: Result.unwrap!(unpin(client, id))
+
+  @doc "Same as `react/3`, but raises `FoPost.Error`."
+  def react!(client, id, reaction), do: Result.unwrap!(react(client, id, reaction))
+
   @doc "Same as `approvals/2`, but raises `FoPost.Error`."
   def approvals!(client, opts \\ []), do: Result.unwrap!(approvals(client, opts))
 
@@ -322,6 +376,12 @@ defmodule FoPost.Inbox do
 
   @doc "Same as `reject_reply/2`, but raises `FoPost.Error`."
   def reject_reply!(client, id), do: Result.unwrap!(reject_reply(client, id))
+
+  defp action(client, id, action) do
+    with {:ok, data} <- Client.request(client, :post, path(id, action)) do
+      {:ok, InboxItem.from_map(data)}
+    end
+  end
 
   defp put_snoozed_until(body, opts) do
     case Keyword.fetch(opts, :snoozed_until) do
