@@ -234,4 +234,22 @@ defmodule FoPost.InboxTest do
     assert item.text == "Fixed typo"
     assert item.edited_at == ~U[2026-09-01 12:00:00Z]
   end
+
+  test "reply sends media_ids and quick_replies without text", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/inbox/item_1/reply", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+      assert Jason.decode!(raw) == %{
+               "media_ids" => ["med_1"],
+               "quick_replies" => ["Yes", "No"]
+             }
+
+      TestSupport.json(conn, 200, %{"data" => %{"item" => %{"id" => "item_1"}}})
+    end)
+
+    opts = [media_ids: ["med_1"], quick_replies: ["Yes", "No"]]
+
+    assert {:ok, result} = Inbox.reply(TestSupport.client(bypass), "item_1", opts)
+    assert result.item.id == "item_1"
+  end
 end

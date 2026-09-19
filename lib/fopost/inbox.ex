@@ -208,12 +208,17 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
-  Sends a reply on the platform as the connected account. Required: `:text`.
+  Sends a reply on the platform as the connected account. `:text` is required unless
+  `:media_ids` is given.
+
+  A DM reply may also carry `:media_ids` (media library ids, at most 10) and
+  `:quick_replies` (at most 13, each at most 20 characters); either also needs the
+  `publish` scope.
   """
   @spec reply(Client.t(), String.t(), keyword()) ::
           {:ok, InboxReplyResult.t()} | {:error, FoPost.Error.t()}
   def reply(client, id, opts) do
-    body = Model.take_body(opts, [:text])
+    body = Model.take_body(opts, [:text, :media_ids, :quick_replies])
 
     with {:ok, data} <- Client.request(client, :post, path(id, "reply"), json: body) do
       {:ok, InboxReplyResult.from_map(data)}
