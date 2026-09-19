@@ -14,7 +14,7 @@ defmodule FoPost.PageMeta do
     fields = Model.normalize(data)
 
     %__MODULE__{
-      current_page: fields["current_page"],
+      current_page: fields["current_page"] || fields["page"],
       per_page: fields["per_page"],
       total: fields["total"],
       last_page: fields["last_page"],
