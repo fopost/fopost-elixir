@@ -246,7 +246,8 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
-  Deletes a comment on the platform.
+  Deletes a comment on the platform, someone else's or our own reply. Deleting our own
+  reply also needs the `publish` scope.
   """
   @spec delete(Client.t(), String.t()) :: {:ok, Message.t()} | {:error, FoPost.Error.t()}
   def delete(client, id) do
