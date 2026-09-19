@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `FoPost.Validate`: `post/2`, `length/2`, and `media/2` check content, text length, and a
+  media URL against platform rules without creating a post (scope `posts`).
+
 ## [0.2.0] - 2026-09-19
 
 ### Added
@@ -28,5 +35,6 @@ Initial release.
 - Automatic retries on 429, 5xx, and transport errors, honouring `Retry-After`.
 - Webhook signature verification with a constant-time comparison.
 
+[Unreleased]: https://github.com/fopost/fopost-elixir/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/fopost/fopost-elixir/releases/tag/v0.2.0
 [0.1.0]: https://github.com/fopost/fopost-elixir/releases/tag/v0.1.0
