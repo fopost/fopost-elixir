@@ -13,6 +13,7 @@ defmodule FoPost.Inbox do
   alias FoPost.InboxAccount
   alias FoPost.InboxApproval
   alias FoPost.InboxConversation
+  alias FoPost.InboxConversationStart
   alias FoPost.InboxDecision
   alias FoPost.InboxItem
   alias FoPost.InboxPlatform
@@ -296,6 +297,41 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
+  Opens a direct-message conversation and sends the first message. Also needs the
+  `publish` scope.
+
+  Required: `:text`, plus either `:handle` and `:account_id` (where the account's
+  `:can_start_conversation` is true), or `:comment_id` for a private reply to an inbox
+  comment (where the item's `:can_private_reply` is true). Optional: `:media_ids`, at
+  most 10.
+  """
+  @spec start_conversation(Client.t(), keyword()) ::
+          {:ok, InboxConversationStart.t()} | {:error, FoPost.Error.t()}
+  def start_conversation(client, opts) do
+    body = Model.take_body(opts, [:account_id, :handle, :comment_id, :text, :media_ids])
+
+    with {:ok, data} <- Client.request(client, :post, "/inbox/conversations", json: body) do
+      {:ok, InboxConversationStart.from_map(data)}
+    end
+  end
+
+  @doc """
+  Shows the typing indicator in a DM thread, or clears it with `on: false`; answers
+  whether it is now on. `conversation_id` is the thread's `:conversation_id`. Required:
+  `:account_id`. Also needs the `publish` scope.
+  """
+  @spec set_typing(Client.t(), String.t(), keyword()) ::
+          {:ok, boolean()} | {:error, FoPost.Error.t()}
+  def set_typing(client, conversation_id, opts) do
+    body = Model.take_body(opts, [:account_id, :on])
+    typing_path = "/inbox/conversations/" <> encode(conversation_id) <> "/typing"
+
+    with {:ok, data} <- Client.request(client, :post, typing_path, json: body) do
+      {:ok, typing(data)}
+    end
+  end
+
+  @doc """
   Replies an automation or the agent drafted that a person still has to send.
   """
   @spec approvals(Client.t(), keyword()) ::
@@ -389,6 +425,13 @@ defmodule FoPost.Inbox do
   @doc "Same as `react/3`, but raises `FoPost.Error`."
   def react!(client, id, reaction), do: Result.unwrap!(react(client, id, reaction))
 
+  @doc "Same as `start_conversation/2`, but raises `FoPost.Error`."
+  def start_conversation!(client, opts), do: Result.unwrap!(start_conversation(client, opts))
+
+  @doc "Same as `set_typing/3`, but raises `FoPost.Error`."
+  def set_typing!(client, conversation_id, opts),
+    do: Result.unwrap!(set_typing(client, conversation_id, opts))
+
   @doc "Same as `approvals/2`, but raises `FoPost.Error`."
   def approvals!(client, opts \\ []), do: Result.unwrap!(approvals(client, opts))
 
@@ -413,6 +456,9 @@ defmodule FoPost.Inbox do
 
   defp count(%{"count" => count}) when is_integer(count), do: count
   defp count(_data), do: 0
+
+  defp typing(%{"typing" => typing}) when is_boolean(typing), do: typing
+  defp typing(_data), do: false
 
   defp updated(%{"updated" => updated}) when is_integer(updated), do: updated
   defp updated(_data), do: 0

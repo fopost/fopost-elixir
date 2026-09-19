@@ -490,3 +490,30 @@ defmodule FoPost.InboxReplyResult do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.InboxConversationStart do
+  @moduledoc """
+  A started conversation: its `:conversation_id` and the sent message as an item. Either
+  may be `nil` when the platform does not report it.
+  """
+
+  alias FoPost.InboxItem
+  alias FoPost.Model
+
+  defstruct [:conversation_id, :item, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      conversation_id: fields["conversation_id"],
+      item: Model.build(InboxItem, fields["item"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

@@ -252,4 +252,40 @@ defmodule FoPost.InboxTest do
     assert {:ok, result} = Inbox.reply(TestSupport.client(bypass), "item_1", opts)
     assert result.item.id == "item_1"
   end
+
+  test "start_conversation sends a snake_case body and decodes the result", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/inbox/conversations", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+      assert Jason.decode!(raw) == %{
+               "account_id" => "acc_1",
+               "handle" => "yourbrand",
+               "text" => "Hi there",
+               "media_ids" => ["med_1"]
+             }
+
+      TestSupport.json(conn, 201, %{
+        "data" => %{"conversationId" => "conv_1", "item" => %{"id" => "item_9", "type" => "dm"}}
+      })
+    end)
+
+    opts = [account_id: "acc_1", handle: "yourbrand", text: "Hi there", media_ids: ["med_1"]]
+
+    assert {:ok, started} = Inbox.start_conversation(TestSupport.client(bypass), opts)
+    assert started.conversation_id == "conv_1"
+    assert started.item.id == "item_9"
+  end
+
+  test "set_typing posts to the conversation and answers the flag", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/inbox/conversations/conv_1/typing", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw) == %{"account_id" => "acc_1", "on" => false}
+
+      TestSupport.json(conn, 200, %{"data" => %{"typing" => false}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, false} = Inbox.set_typing(client, "conv_1", account_id: "acc_1", on: false)
+  end
 end
