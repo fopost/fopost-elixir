@@ -18,7 +18,7 @@ Requires Elixir 1.15 or newer on OTP 25 or newer.
 
 ```elixir
 def deps do
-  [{:fopost, "~> 0.2"}]
+  [{:fopost, "~> 0.3"}]
 end
 ```
 

@@ -25,7 +25,7 @@ Do not add a defensive catch-all back to either.
 
 ## What This Is
 
-Hex package [`fopost`](https://hex.pm/packages/fopost), app `:fopost`, version `0.2.0` —
+Hex package [`fopost`](https://hex.pm/packages/fopost), app `:fopost`, version `0.3.0` —
 the official Elixir client for the FoPost REST API (`fopost.com`). Elixir `~> 1.15`,
 OTP 25+.
 
