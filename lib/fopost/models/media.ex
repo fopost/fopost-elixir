@@ -60,3 +60,34 @@ defmodule FoPost.MediaAsset do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.PresignedUpload do
+  @moduledoc """
+  A one-time upload slot from `FoPost.Media.presign/2`.
+
+  `PUT` the file's bytes to `:upload_url` with exactly `:headers` and no API key, then call
+  `FoPost.Media.complete/2` with `:upload_id` before `:expires_at`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:upload_id, :upload_url, :method, :headers, :expires_at, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      upload_id: fields["upload_id"],
+      upload_url: fields["upload_url"],
+      method: fields["method"],
+      headers: fields["headers"] || %{},
+      expires_at: Model.datetime(fields["expires_at"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

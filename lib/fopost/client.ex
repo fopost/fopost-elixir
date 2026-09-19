@@ -107,9 +107,20 @@ defmodule FoPost.Client do
     {unwrap?, req_opts} = Keyword.pop(opts, :unwrap, true)
 
     client
-    |> build(method, path, req_opts)
+    |> build(method, url(client, path), headers(client), req_opts)
     |> Req.request()
     |> handle(unwrap?)
+  end
+
+  # Sends raw bytes to a presigned URL: absolute, with only the headers the API issued.
+  @doc false
+  @spec put_raw(t(), String.t(), map() | keyword(), binary()) ::
+          {:ok, term()} | {:error, Error.t()}
+  def put_raw(%__MODULE__{} = client, url, headers, body) when is_binary(body) do
+    client
+    |> build(:put, url, Enum.to_list(headers), body: body)
+    |> Req.request()
+    |> handle(false)
   end
 
   @doc false
@@ -147,11 +158,11 @@ defmodule FoPost.Client do
     end
   end
 
-  defp build(client, method, path, opts) do
+  defp build(client, method, url, headers, opts) do
     [
       method: method,
-      url: url(client, path),
-      headers: headers(client),
+      url: url,
+      headers: headers,
       receive_timeout: client.receive_timeout,
       max_retries: client.max_retries,
       retry: &__MODULE__.retry?/2,

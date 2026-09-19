@@ -158,6 +158,17 @@ FoPost.Posts.create(client,
 A file is a path, a `{filename, content}` tuple, or a map of `:filename`, `:content`, and
 optionally `:content_type`.
 
+A direct upload sends the bytes to a presigned URL instead of through the API, then files
+them in the library:
+
+```elixir
+{:ok, asset} =
+  FoPost.Media.upload_direct(client, workspace.id, "chart.png", "image/png", bytes)
+```
+
+`FoPost.Media.presign/2` and `FoPost.Media.complete/2` are the two steps it wraps, for a
+client that `PUT`s the bytes itself.
+
 ## Webhooks
 
 A delivery carries `X-FoPost-Signature` (`sha256=<hex>`), `X-FoPost-Event`, and
