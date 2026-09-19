@@ -17,11 +17,12 @@ defmodule FoPost.Accounts do
   alias FoPost.ValidationResult
 
   @doc """
-  The connected accounts the key can reach, optionally narrowed with `:workspace_id`.
+  The connected accounts the key can reach, optionally narrowed with `:workspace_id` or
+  `:group_id` (an account group).
   """
   @spec list(Client.t(), keyword()) :: {:ok, [Account.t()]} | {:error, FoPost.Error.t()}
   def list(client, opts \\ []) do
-    params = Model.take_params(opts, [{:workspace_id, "workspaceId"}])
+    params = Model.take_params(opts, [{:workspace_id, "workspaceId"}, :group_id])
 
     with {:ok, data} <- Client.request(client, :get, "/accounts", params: params) do
       {:ok, Model.list(Account, data)}
@@ -57,6 +58,36 @@ defmodule FoPost.Accounts do
       ])
 
     with {:ok, data} <- Client.request(client, :post, "/accounts", json: body) do
+      {:ok, Account.from_map(data)}
+    end
+  end
+
+  @doc """
+  Sets the name FoPost shows for an account. A `nil` or empty `display_name` restores the
+  platform's own name, which stays readable as `:platform_name`.
+  """
+  @spec rename(Client.t(), String.t(), String.t() | nil) ::
+          {:ok, Account.t()} | {:error, FoPost.Error.t()}
+  def rename(client, id, display_name) do
+    body = %{"display_name" => display_name}
+
+    with {:ok, data} <- Client.request(client, :patch, path(id), json: body) do
+      {:ok, Account.from_map(data)}
+    end
+  end
+
+  @doc """
+  Moves an account to another workspace the caller owns.
+
+  A blocked move is a 409 whose `code` is `"move_blocked"`; the reasons are under
+  `"blocking_tables"` in the error's body.
+  """
+  @spec move(Client.t(), String.t(), String.t()) ::
+          {:ok, Account.t()} | {:error, FoPost.Error.t()}
+  def move(client, id, workspace_id) do
+    body = %{"workspace_id" => workspace_id}
+
+    with {:ok, data} <- Client.request(client, :post, path(id) <> "/move", json: body) do
       {:ok, Account.from_map(data)}
     end
   end
@@ -155,6 +186,12 @@ defmodule FoPost.Accounts do
 
   @doc "Same as `create/2`, but raises `FoPost.Error`."
   def create!(client, opts), do: Result.unwrap!(create(client, opts))
+
+  @doc "Same as `rename/3`, but raises `FoPost.Error`."
+  def rename!(client, id, display_name), do: Result.unwrap!(rename(client, id, display_name))
+
+  @doc "Same as `move/3`, but raises `FoPost.Error`."
+  def move!(client, id, workspace_id), do: Result.unwrap!(move(client, id, workspace_id))
 
   @doc "Same as `delete/2`, but raises `FoPost.Error`."
   def delete!(client, id), do: Result.unwrap!(delete(client, id))
