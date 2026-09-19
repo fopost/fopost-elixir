@@ -72,6 +72,7 @@ defmodule FoPost.MixProject do
           FoPost.Labels,
           FoPost.Media,
           FoPost.Posts,
+          FoPost.Validate,
           FoPost.Webhooks,
           FoPost.Workspaces
         ]

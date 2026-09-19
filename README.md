@@ -234,7 +234,7 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 `FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.Communities` ·
 `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` · `FoPost.Automations` ·
-`FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads`
+`FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate`
 
 ## Inbox and ads
 
@@ -260,6 +260,23 @@ audiences, and lead forms (scope `ads`; `boost/2`, `create/2`, `set_status/3`, a
     budget: %{minor: 5_000, type: "daily"},
     targeting: %{countries: ["US"], ageMin: 18, ageMax: 65, gender: "all"}
   )
+```
+
+## Validating
+
+`FoPost.Validate` checks content against platform rules without creating a post; nothing
+is stored (scope `posts`). `post/2` checks a whole post, `length/2` measures text the way
+each platform counts it, and `media/2` fetches a public file and checks it.
+
+```elixir
+{:ok, result} = FoPost.Validate.post(client, content: text, platforms: ["twitter", "linkedin"])
+result.ready
+
+{:ok, result} = FoPost.Validate.length(client, text: text, platforms: ["twitter"])
+hd(result.platforms).limit
+
+{:ok, result} = FoPost.Validate.media(client, url: "https://cdn.yourbrand.com/chart.png")
+result.ok
 ```
 
 ## Examples

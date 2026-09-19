@@ -32,7 +32,7 @@ defmodule FoPost do
 
   `FoPost.Posts`, `FoPost.Workspaces`, `FoPost.Accounts`, `FoPost.Communities`,
   `FoPost.Labels`, `FoPost.Webhooks`, `FoPost.Analytics`, `FoPost.Automations`,
-  `FoPost.Media`. Anything they do not wrap is reachable through `request/4`.
+  `FoPost.Media`, `FoPost.Inbox`, `FoPost.Ads`, `FoPost.Validate`. Anything they do not wrap is reachable through `request/4`.
   """
 
   alias FoPost.Client
