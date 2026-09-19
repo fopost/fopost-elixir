@@ -21,7 +21,7 @@ defmodule FoPost.Client do
 
   alias FoPost.Error
 
-  @version "0.1.0"
+  @version "0.2.0"
   @default_base_url "https://api.fopost.com/v1"
   @default_receive_timeout 30_000
   @default_max_retries 2

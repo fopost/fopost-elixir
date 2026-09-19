@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-19
+
+### Added
+
+- `FoPost.Inbox`: comments, mentions, and direct messages on connected accounts, thread
+  and conversation lists, unread count, mark-read, refresh, state changes, replies, hide
+  and unhide, delete, and drafted-reply approvals (scope `inbox`).
+- `FoPost.Ads`: boosts, ads, external ads, boostable posts, connections and sources,
+  Meta authorization, status changes, refresh, audiences, targeting search, lead forms,
+  and leads (scope `ads`; spending calls also need `publish`).
+
 ## [0.1.0] - 2026-08-30
 
 Initial release.
@@ -17,4 +28,5 @@ Initial release.
 - Automatic retries on 429, 5xx, and transport errors, honouring `Retry-After`.
 - Webhook signature verification with a constant-time comparison.
 
+[0.2.0]: https://github.com/fopost/fopost-elixir/releases/tag/v0.2.0
 [0.1.0]: https://github.com/fopost/fopost-elixir/releases/tag/v0.1.0
