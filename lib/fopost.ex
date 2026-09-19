@@ -30,8 +30,8 @@ defmodule FoPost do
 
   ## Resources
 
-  `FoPost.Posts`, `FoPost.Workspaces`, `FoPost.Accounts`, `FoPost.Communities`,
-  `FoPost.Labels`, `FoPost.Webhooks`, `FoPost.Analytics`, `FoPost.Automations`,
+  `FoPost.Posts`, `FoPost.Workspaces`, `FoPost.Accounts`, `FoPost.AccountGroups`,
+  `FoPost.Communities`, `FoPost.Labels`, `FoPost.Webhooks`, `FoPost.Analytics`, `FoPost.Automations`,
   `FoPost.Media`, `FoPost.Inbox`, `FoPost.Ads`, `FoPost.Validate`. Anything they do not wrap is reachable through `request/4`.
   """
 

@@ -63,6 +63,7 @@ defmodule FoPost.MixProject do
       groups_for_modules: [
         Client: [FoPost, FoPost.Client, FoPost.Error, FoPost.Content, FoPost.Page],
         Resources: [
+          FoPost.AccountGroups,
           FoPost.Accounts,
           FoPost.Ads,
           FoPost.Analytics,
