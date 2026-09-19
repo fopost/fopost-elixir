@@ -1,6 +1,9 @@
 defmodule FoPost.Account do
   @moduledoc """
   A connected social account — the thing a post is delivered to.
+
+  `:name` is the display name override when one is set, else the platform's own name,
+  which is always `:platform_name`.
   """
 
   alias FoPost.Model
@@ -11,6 +14,7 @@ defmodule FoPost.Account do
     :platform,
     :username,
     :name,
+    :platform_name,
     :avatar,
     :is_primary,
     :active,
@@ -34,6 +38,7 @@ defmodule FoPost.Account do
       platform: fields["platform"],
       username: fields["username"],
       name: fields["name"],
+      platform_name: fields["platform_name"],
       avatar: fields["avatar"],
       is_primary: fields["is_primary"],
       active: fields["active"],

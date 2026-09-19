@@ -7,6 +7,26 @@ defmodule FoPost.PostsTest do
     {:ok, bypass: Bypass.open()}
   end
 
+  test "create can target an account group alone", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/posts", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      body = Jason.decode!(raw)
+
+      assert body["account_group_id"] == "grp_1"
+      assert body["accounts"] == []
+      TestSupport.json(conn, 201, %{"data" => %{"id" => "post_1"}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %FoPost.Post{id: "post_1"}} =
+             FoPost.Posts.create(client,
+               workspace_id: "ws_1",
+               account_group_id: "grp_1",
+               content: "Hello"
+             )
+  end
+
   test "create sends the composed body and decodes the post", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/v1/posts", fn conn ->
       {:ok, raw, conn} = Plug.Conn.read_body(conn)

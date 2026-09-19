@@ -139,7 +139,8 @@ defmodule FoPost.Posts do
   @doc """
   Composes a draft or a scheduled post.
 
-  Required: `:workspace_id`, `:content`, `:accounts`. Optional: `:status`,
+  Required: `:workspace_id`, `:content`, and `:accounts` or `:account_group_id` (the
+  group's accounts are merged into `:accounts`, each account once). Optional: `:status`,
   `:schedule_at`, `:content_type`, `:artifact_type`, `:labels`, `:title`,
   `:internal_title`, `:summary`, `:auto_plug`, `:auto_plug_content`, `:settings`,
   `:repeatable`, `:repeatable_times`, `:repeatable_gap`, `:repeatable_gap_unit`,
@@ -153,6 +154,7 @@ defmodule FoPost.Posts do
       |> Map.put("workspace_id", Keyword.get(opts, :workspace_id))
       |> Map.put("content", Content.normalize(Keyword.get(opts, :content)))
       |> Map.put("accounts", account_ids(Keyword.get(opts, :accounts)))
+      |> Model.put_present("account_group_id", opts[:account_group_id])
       |> put_schedule_at(opts)
 
     with {:ok, data} <- Client.request(client, :post, "/posts", json: body) do
