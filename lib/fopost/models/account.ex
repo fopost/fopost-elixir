@@ -229,3 +229,92 @@ defmodule FoPost.AccountAnalytics do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.TelegramConnectCode do
+  @moduledoc """
+  A one-time code, valid for 15 minutes, that connects a Telegram chat when `:command`
+  (`/connect <code>`) is sent to the bot there.
+
+  `:deep_link` opens a private chat with the bot and `:group_link` adds it to a group, both
+  with the code included; either may be `nil`, as may `:bot_username`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:code, :command, :bot_username, :deep_link, :group_link, :expires_at, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      code: fields["code"],
+      command: fields["command"],
+      bot_username: fields["bot_username"],
+      deep_link: fields["deep_link"],
+      group_link: fields["group_link"],
+      expires_at: Model.datetime(fields["expires_at"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.TelegramConnectStatus do
+  @moduledoc """
+  Where a Telegram connect code stands.
+
+  `:status` is `"pending"`, `"connected"` (with `:account_id`), `"failed"` (with
+  `:reason`: `"card_required"`, `"slot_taken"`, or `"workspace_unavailable"`), or
+  `"expired"`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:status, :account_id, :reason, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      status: fields["status"],
+      account_id: fields["account_id"],
+      reason: fields["reason"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.TelegramBotCommand do
+  @moduledoc """
+  One entry in a Telegram bot's command menu: `:command` is 1-32 lowercase letters, digits,
+  or underscores without the slash, and `:description` is 1-256 characters.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:command, :description, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      command: fields["command"],
+      description: fields["description"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

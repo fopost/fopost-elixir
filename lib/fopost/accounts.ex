@@ -14,6 +14,9 @@ defmodule FoPost.Accounts do
   alias FoPost.Message
   alias FoPost.Model
   alias FoPost.Result
+  alias FoPost.TelegramBotCommand
+  alias FoPost.TelegramConnectCode
+  alias FoPost.TelegramConnectStatus
   alias FoPost.ValidationResult
 
   @doc """
@@ -178,6 +181,75 @@ defmodule FoPost.Accounts do
     end
   end
 
+  @doc """
+  Mints a one-time code, valid for 15 minutes. Sending `/connect <code>` to the bot in a
+  chat connects that chat.
+
+  `:workspace_id` may be left out for a key bound to one workspace.
+  """
+  @spec create_telegram_connect_code(Client.t(), keyword()) ::
+          {:ok, TelegramConnectCode.t()} | {:error, FoPost.Error.t()}
+  def create_telegram_connect_code(client, opts \\ []) do
+    body = Model.take_body(opts, [{:workspace_id, "workspaceId"}])
+
+    with {:ok, data} <-
+           Client.request(client, :post, "/accounts/telegram/connect-code", json: body) do
+      {:ok, TelegramConnectCode.from_map(data)}
+    end
+  end
+
+  @doc """
+  Where a Telegram connect code stands: `"pending"`, `"connected"`, `"failed"`, or
+  `"expired"`.
+  """
+  @spec telegram_connect_status(Client.t(), String.t()) ::
+          {:ok, TelegramConnectStatus.t()} | {:error, FoPost.Error.t()}
+  def telegram_connect_status(client, code) do
+    url_path = "/accounts/telegram/connect-code/status"
+
+    with {:ok, data} <- Client.request(client, :get, url_path, params: %{"code" => code}) do
+      {:ok, TelegramConnectStatus.from_map(data)}
+    end
+  end
+
+  @doc """
+  The command menu the bot shows in a connected Telegram chat.
+  """
+  @spec telegram_bot_commands(Client.t(), String.t()) ::
+          {:ok, [TelegramBotCommand.t()]} | {:error, FoPost.Error.t()}
+  def telegram_bot_commands(client, id) do
+    with {:ok, data} <- Client.request(client, :get, commands_path(id)) do
+      {:ok, commands(data)}
+    end
+  end
+
+  @doc """
+  Replaces the command menu for a connected Telegram chat.
+
+  `commands` is a list of 1-100 maps (or `FoPost.TelegramBotCommand` structs) with
+  `:command` and `:description`.
+  """
+  @spec set_telegram_bot_commands(Client.t(), String.t(), [map()]) ::
+          {:ok, [TelegramBotCommand.t()]} | {:error, FoPost.Error.t()}
+  def set_telegram_bot_commands(client, id, commands) do
+    body = %{"commands" => Enum.map(commands, &command_body/1)}
+
+    with {:ok, data} <- Client.request(client, :put, commands_path(id), json: body) do
+      {:ok, commands(data)}
+    end
+  end
+
+  @doc """
+  Clears the command menu for a connected Telegram chat.
+  """
+  @spec delete_telegram_bot_commands(Client.t(), String.t()) ::
+          {:ok, [TelegramBotCommand.t()]} | {:error, FoPost.Error.t()}
+  def delete_telegram_bot_commands(client, id) do
+    with {:ok, data} <- Client.request(client, :delete, commands_path(id)) do
+      {:ok, commands(data)}
+    end
+  end
+
   @doc "Same as `list/2`, but raises `FoPost.Error`."
   def list!(client, opts \\ []), do: Result.unwrap!(list(client, opts))
 
@@ -213,6 +285,36 @@ defmodule FoPost.Accounts do
 
   @doc "Same as `analytics/3`, but raises `FoPost.Error`."
   def analytics!(client, id, opts \\ []), do: Result.unwrap!(analytics(client, id, opts))
+
+  @doc "Same as `create_telegram_connect_code/2`, but raises `FoPost.Error`."
+  def create_telegram_connect_code!(client, opts \\ []),
+    do: Result.unwrap!(create_telegram_connect_code(client, opts))
+
+  @doc "Same as `telegram_connect_status/2`, but raises `FoPost.Error`."
+  def telegram_connect_status!(client, code),
+    do: Result.unwrap!(telegram_connect_status(client, code))
+
+  @doc "Same as `telegram_bot_commands/2`, but raises `FoPost.Error`."
+  def telegram_bot_commands!(client, id), do: Result.unwrap!(telegram_bot_commands(client, id))
+
+  @doc "Same as `set_telegram_bot_commands/3`, but raises `FoPost.Error`."
+  def set_telegram_bot_commands!(client, id, commands),
+    do: Result.unwrap!(set_telegram_bot_commands(client, id, commands))
+
+  @doc "Same as `delete_telegram_bot_commands/2`, but raises `FoPost.Error`."
+  def delete_telegram_bot_commands!(client, id),
+    do: Result.unwrap!(delete_telegram_bot_commands(client, id))
+
+  defp commands_path(id), do: path(id) <> "/telegram/commands"
+
+  defp commands(data), do: Model.list(TelegramBotCommand, Model.normalize(data)["commands"])
+
+  defp command_body(command) do
+    %{
+      "command" => Map.get(command, :command, Map.get(command, "command")),
+      "description" => Map.get(command, :description, Map.get(command, "description"))
+    }
+  end
 
   defp path(id), do: "/accounts/" <> URI.encode(to_string(id), &URI.char_unreserved?/1)
 end
