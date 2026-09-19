@@ -137,3 +137,33 @@ defmodule FoPost.Validate.MediaResult do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.Validate.SubredditResult do
+  @moduledoc """
+  Whether a subreddit exists and takes a post from one account. `:ok` is true when both
+  hold; a private, banned, or missing subreddit answers `exists: false` rather than failing.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:subreddit, :exists, :can_post, :over_18, :flair_enabled, :ok, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      subreddit: fields["subreddit"],
+      exists: fields["exists"],
+      can_post: fields["can_post"],
+      over_18: fields["over_18"],
+      flair_enabled: fields["flair_enabled"],
+      ok: fields["ok"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

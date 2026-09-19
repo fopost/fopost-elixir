@@ -271,6 +271,24 @@ defmodule FoPost.Inbox do
   def unlike(client, id), do: action(client, id, "unlike")
 
   @doc """
+  Votes an item up or down where the network ranks by votes (Reddit), or takes an earlier
+  vote back with `"none"`.
+
+  Only where `:can_vote` is true. An upvote is the same call a like makes, so `:liked`
+  moves with it. Also needs the `publish` scope.
+  """
+  @spec vote(Client.t(), String.t(), String.t()) ::
+          {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def vote(client, id, direction) do
+    with {:ok, data} <-
+           Client.request(client, :post, path(id, "vote"),
+             json: %{"direction" => to_string(direction)}
+           ) do
+      {:ok, InboxItem.from_map(data)}
+    end
+  end
+
+  @doc """
   Pins our own comment. Only where `:can_pin` is true. Also needs the `publish` scope.
   """
   @spec pin(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
@@ -415,6 +433,9 @@ defmodule FoPost.Inbox do
 
   @doc "Same as `unlike/2`, but raises `FoPost.Error`."
   def unlike!(client, id), do: Result.unwrap!(unlike(client, id))
+
+  @doc "Same as `vote/3`, but raises `FoPost.Error`."
+  def vote!(client, id, direction), do: Result.unwrap!(vote(client, id, direction))
 
   @doc "Same as `pin/2`, but raises `FoPost.Error`."
   def pin!(client, id), do: Result.unwrap!(pin(client, id))

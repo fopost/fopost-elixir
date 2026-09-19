@@ -20,6 +20,7 @@ defmodule FoPost.Account do
     :active,
     :health_status,
     :last_health_check,
+    :reconnect_required,
     :workspace,
     :created_at,
     :updated_at,
@@ -44,6 +45,7 @@ defmodule FoPost.Account do
       active: fields["active"],
       health_status: fields["health_status"],
       last_health_check: Model.datetime(fields["last_health_check"]),
+      reconnect_required: fields["reconnect_required"],
       workspace: Model.normalize(fields["workspace"]),
       created_at: Model.datetime(fields["created_at"]),
       updated_at: Model.datetime(fields["updated_at"]),
@@ -398,6 +400,101 @@ defmodule FoPost.SlackIdentity do
       username: fields["username"],
       icon_url: fields["icon_url"],
       icon_emoji: fields["icon_emoji"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.RedditSubreddit do
+  @moduledoc """
+  A subreddit an account can post to. `:name` carries no `r/` prefix, `:can_post` is false
+  where the account may read but not submit, and `:is_default` marks the account's default.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :name,
+    :title,
+    :subscribers,
+    :over18,
+    :can_post,
+    :flair_enabled,
+    :icon_url,
+    :is_default,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      name: fields["name"],
+      title: fields["title"],
+      subscribers: fields["subscribers"],
+      over18: fields["over18"],
+      can_post: fields["can_post"],
+      flair_enabled: fields["flair_enabled"],
+      icon_url: fields["icon_url"],
+      is_default: fields["is_default"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.RedditSubredditRule do
+  @moduledoc """
+  One rule a subreddit publishes. `:applies_to` is `"link"`, `"comment"`, or `"all"`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:name, :description, :applies_to, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      name: fields["name"],
+      description: fields["description"],
+      applies_to: fields["applies_to"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.RedditFlair do
+  @moduledoc """
+  A post flair a subreddit offers. A flair id is valid only in the subreddit it came from,
+  and `:editable` says whether its label may be replaced.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :text, :editable, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      text: fields["text"],
+      editable: fields["editable"],
       raw: data
     }
   end

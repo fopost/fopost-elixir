@@ -11,6 +11,15 @@ All notable changes to this project are documented in this file. The format foll
 - `FoPost.Accounts.slack_channels/2`, `slack_members/2`, `slack_identity/2`, and
   `update_slack_identity/3` read a Slack account's channels and workspace members and set
   the name and icon it posts under; a `nil` option clears a field (scope `accounts`).
+- `FoPost.Accounts.reddit_subreddits/2`, `reddit_subreddit_rules/3`, `reddit_flairs/3`, and
+  `set_reddit_default_subreddit/3` read the subreddits a Reddit account is in, a
+  subreddit's rules and post flairs, and set where posts go when a post names none (scope
+  `accounts`).
+- `FoPost.Validate.subreddit/2` answers whether a subreddit exists and takes a post from an
+  account, before a post exists (scope `posts`).
+- `FoPost.Inbox.vote/3` votes an item up or down, or takes the vote back with `"none"`
+  (scopes `inbox` and `publish`).
+- `:reconnect_required` on `FoPost.Account`, and `:vote` and `:can_vote` on an inbox item.
 
 ## [0.3.0] - 2026-09-19
 

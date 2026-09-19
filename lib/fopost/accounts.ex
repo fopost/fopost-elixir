@@ -13,6 +13,9 @@ defmodule FoPost.Accounts do
   alias FoPost.HealthSummary
   alias FoPost.Message
   alias FoPost.Model
+  alias FoPost.RedditFlair
+  alias FoPost.RedditSubreddit
+  alias FoPost.RedditSubredditRule
   alias FoPost.Result
   alias FoPost.SlackChannel
   alias FoPost.SlackIdentity
@@ -254,6 +257,68 @@ defmodule FoPost.Accounts do
   end
 
   @doc """
+  Subreddits the account is subscribed to, busiest first, plus its own profile page.
+
+  `:can_post` is false where the account may read but not submit, and `:is_default` marks
+  the subreddit posts go to when a post names none. A 409 whose `code` is
+  `"reconnect_required"` means the account has to be reconnected first.
+  """
+  @spec reddit_subreddits(Client.t(), String.t()) ::
+          {:ok, [RedditSubreddit.t()]} | {:error, FoPost.Error.t()}
+  def reddit_subreddits(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/reddit/subreddits") do
+      {:ok, Model.list(RedditSubreddit, data)}
+    end
+  end
+
+  @doc """
+  The rules a subreddit publishes, in its own order. `subreddit` carries no `r/` prefix.
+  """
+  @spec reddit_subreddit_rules(Client.t(), String.t(), String.t()) ::
+          {:ok, [RedditSubredditRule.t()]} | {:error, FoPost.Error.t()}
+  def reddit_subreddit_rules(client, id, subreddit) do
+    url_path = path(id) <> "/reddit/subreddits/" <> encode(subreddit) <> "/rules"
+
+    with {:ok, data} <- Client.request(client, :get, url_path) do
+      {:ok, Model.list(RedditSubredditRule, Model.normalize(data)["rules"])}
+    end
+  end
+
+  @doc """
+  Post flairs one subreddit offers.
+
+  A flair id is valid only in the subreddit it came from: pass it as `flair_id` in the
+  post's Reddit platform settings, and preflight rejects an id from anywhere else.
+  """
+  @spec reddit_flairs(Client.t(), String.t(), String.t()) ::
+          {:ok, [RedditFlair.t()]} | {:error, FoPost.Error.t()}
+  def reddit_flairs(client, id, subreddit) do
+    url_path = path(id) <> "/reddit/flairs"
+
+    with {:ok, data} <-
+           Client.request(client, :get, url_path, params: %{"subreddit" => subreddit}) do
+      {:ok, Model.list(RedditFlair, Model.normalize(data)["flairs"])}
+    end
+  end
+
+  @doc """
+  Sets where posts from a Reddit account go when a post names no subreddit.
+
+  `nil` falls back to the account's own profile page, which always takes a post. Returns
+  the subreddit that is now in effect.
+  """
+  @spec set_reddit_default_subreddit(Client.t(), String.t(), String.t() | nil) ::
+          {:ok, String.t() | nil} | {:error, FoPost.Error.t()}
+  def set_reddit_default_subreddit(client, id, subreddit) do
+    url_path = path(id) <> "/reddit/default-subreddit"
+
+    with {:ok, data} <-
+           Client.request(client, :put, url_path, json: %{"subreddit" => subreddit}) do
+      {:ok, Model.normalize(data)["subreddit"]}
+    end
+  end
+
+  @doc """
   Channels the Slack app can post to: every public channel, and private ones the app was
   invited to. A 409 whose `code` is `"webhook_connection"` means the account posts through
   a webhook.
@@ -361,6 +426,21 @@ defmodule FoPost.Accounts do
   def delete_telegram_bot_commands!(client, id),
     do: Result.unwrap!(delete_telegram_bot_commands(client, id))
 
+  @doc "Same as `reddit_subreddits/2`, but raises `FoPost.Error`."
+  def reddit_subreddits!(client, id), do: Result.unwrap!(reddit_subreddits(client, id))
+
+  @doc "Same as `reddit_subreddit_rules/3`, but raises `FoPost.Error`."
+  def reddit_subreddit_rules!(client, id, subreddit),
+    do: Result.unwrap!(reddit_subreddit_rules(client, id, subreddit))
+
+  @doc "Same as `reddit_flairs/3`, but raises `FoPost.Error`."
+  def reddit_flairs!(client, id, subreddit),
+    do: Result.unwrap!(reddit_flairs(client, id, subreddit))
+
+  @doc "Same as `set_reddit_default_subreddit/3`, but raises `FoPost.Error`."
+  def set_reddit_default_subreddit!(client, id, subreddit),
+    do: Result.unwrap!(set_reddit_default_subreddit(client, id, subreddit))
+
   @doc "Same as `slack_channels/2`, but raises `FoPost.Error`."
   def slack_channels!(client, id), do: Result.unwrap!(slack_channels(client, id))
 
@@ -385,5 +465,7 @@ defmodule FoPost.Accounts do
     }
   end
 
-  defp path(id), do: "/accounts/" <> URI.encode(to_string(id), &URI.char_unreserved?/1)
+  defp path(id), do: "/accounts/" <> encode(id)
+
+  defp encode(value), do: URI.encode(to_string(value), &URI.char_unreserved?/1)
 end
