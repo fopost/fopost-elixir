@@ -64,9 +64,11 @@ defmodule FoPost.MixProject do
         Client: [FoPost, FoPost.Client, FoPost.Error, FoPost.Content, FoPost.Page],
         Resources: [
           FoPost.Accounts,
+          FoPost.Ads,
           FoPost.Analytics,
           FoPost.Automations,
           FoPost.Communities,
+          FoPost.Inbox,
           FoPost.Labels,
           FoPost.Media,
           FoPost.Posts,
