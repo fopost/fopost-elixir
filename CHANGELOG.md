@@ -26,6 +26,17 @@ All notable changes to this project are documented in this file. The format foll
 - `FoPost.InboxItem`: `:liked`, `:pinned`, `:reaction`, `:edited_at`, `:can_like`,
   `:can_pin`, `:can_edit`, `:can_react`, `:can_send_media`, `:can_quick_reply`, and
   `:can_private_reply`. `FoPost.InboxAccount`: `:can_start_conversation`.
+- `FoPost.Ads` campaign tree: `account_tree/3`, and create, get, update, delete, and
+  duplicate for campaigns, ad sets, and network ads, plus `bulk_set_status/2` (scope `ads`;
+  writes also need `publish`).
+- `FoPost.Ads` creatives (`creatives/2`, `create_creative/2`, `get_creative/3`,
+  `delete_creative/3`), audiences (`get_audience/3`, `update_audience/3`,
+  `delete_audience/3`, `add_audience_users/3`), `estimate_reach/2`, `insights/2`, and
+  `ad_insights/3`.
+- `FoPost.Ads` lead forms and leads: `get_lead_form/3`, `archive_lead_form/3`,
+  `leads_feed/2` (cursor paginated), `lead_pages/2`, `subscribe_lead_page/2`, and
+  `unsubscribe_lead_page/3`.
+- `FoPost.Ads.create/2` accepts `:url_tags`.
 
 ### Changed
 

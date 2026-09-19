@@ -239,10 +239,13 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 ## Inbox and ads
 
 `FoPost.Inbox` reads comments, mentions, and direct messages on connected accounts and
-replies as the account (scope `inbox`). `FoPost.Ads` boosts posts, creates ads,
-audiences, and lead forms (scope `ads`; `boost/2`, `create/2`, `set_status/3`, and
-`delete/3` spend money and also need `publish`). A boost or an ad starts paused unless
-`paused: false`.
+replies as the account (scope `inbox`). `FoPost.Ads` boosts posts, creates ads, and
+manages campaigns, ad sets, creatives, audiences, insights, lead forms, and the leads
+feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
+`bulk_set_status/2`, and the campaign, ad set, and network ad writes spend money and also
+need `publish`). A boost, campaign, ad set, or ad starts paused unless `paused: false`.
+Campaign-tree objects are addressed by Meta id and read live, so those calls take
+`:connection_id`.
 
 ```elixir
 {:ok, page} = FoPost.Inbox.list(client, workspace_id: workspace.id, state: "unread")
@@ -260,6 +263,23 @@ audiences, and lead forms (scope `ads`; `boost/2`, `create/2`, `set_status/3`, a
     budget: %{minor: 5_000, type: "daily"},
     targeting: %{countries: ["US"], ageMin: 18, ageMax: 65, gender: "all"}
   )
+
+meta = [workspace_id: workspace.id, connection_id: connection.id]
+{:ok, tree} = FoPost.Ads.account_tree(client, "act_123", meta)
+{:ok, _copy_id} = FoPost.Ads.duplicate_campaign(client, hd(tree.campaigns).id, meta)
+
+{:ok, report} =
+  FoPost.Ads.insights(client,
+    connection_id: connection.id,
+    object_id: hd(tree.campaigns).id,
+    since: "2026-09-01",
+    until: "2026-09-07",
+    breakdown: "age",
+    daily: true
+  )
+
+{:ok, page} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, limit: 50)
+{:ok, next} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, cursor: page.next_cursor)
 ```
 
 ## Validating
