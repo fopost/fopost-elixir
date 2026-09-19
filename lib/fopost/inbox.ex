@@ -196,6 +196,18 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
+  Edits our own comment on the platform. Only where `:can_edit` is true. Also needs the
+  `publish` scope.
+  """
+  @spec edit_comment(Client.t(), String.t(), String.t()) ::
+          {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def edit_comment(client, id, text) do
+    with {:ok, data} <- Client.request(client, :patch, path(id), json: %{"text" => text}) do
+      {:ok, InboxItem.from_map(data)}
+    end
+  end
+
+  @doc """
   Sends a reply on the platform as the connected account. Required: `:text`.
   """
   @spec reply(Client.t(), String.t(), keyword()) ::
@@ -340,6 +352,9 @@ defmodule FoPost.Inbox do
 
   @doc "Same as `update/3`, but raises `FoPost.Error`."
   def update!(client, id, opts), do: Result.unwrap!(update(client, id, opts))
+
+  @doc "Same as `edit_comment/3`, but raises `FoPost.Error`."
+  def edit_comment!(client, id, text), do: Result.unwrap!(edit_comment(client, id, text))
 
   @doc "Same as `reply/3`, but raises `FoPost.Error`."
   def reply!(client, id, opts), do: Result.unwrap!(reply(client, id, opts))

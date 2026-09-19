@@ -215,4 +215,23 @@ defmodule FoPost.InboxTest do
     assert {:ok, %{reaction: "❤"}} = Inbox.react(client, "item_1", "❤")
     assert {:ok, %{reaction: nil}} = Inbox.react(client, "item_1", nil)
   end
+
+  test "edit_comment patches the item with the new text", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "PATCH", "/v1/inbox/item_1", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw) == %{"text" => "Fixed typo"}
+
+      TestSupport.json(conn, 200, %{
+        "data" => %{
+          "id" => "item_1",
+          "text" => "Fixed typo",
+          "editedAt" => "2026-09-01T12:00:00Z"
+        }
+      })
+    end)
+
+    assert {:ok, item} = Inbox.edit_comment(TestSupport.client(bypass), "item_1", "Fixed typo")
+    assert item.text == "Fixed typo"
+    assert item.edited_at == ~U[2026-09-01 12:00:00Z]
+  end
 end
