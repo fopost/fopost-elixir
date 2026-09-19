@@ -144,4 +144,85 @@ defmodule FoPost.AccountsTest do
 
     assert {:ok, []} = FoPost.Accounts.delete_telegram_bot_commands(client, "acc_1")
   end
+
+  test "slack channels and members read the list", %{bypass: bypass} do
+    Bypass.expect(bypass, fn conn ->
+      case conn.request_path do
+        "/v1/accounts/acc_1/slack/channels" ->
+          TestSupport.json(conn, 200, %{
+            "data" => [
+              %{
+                "id" => "C1",
+                "name" => "general",
+                "is_private" => false,
+                "is_member" => true,
+                "is_current" => true
+              }
+            ]
+          })
+
+        "/v1/accounts/acc_1/slack/members" ->
+          TestSupport.json(conn, 200, %{
+            "data" => [
+              %{
+                "id" => "U1",
+                "name" => "ada",
+                "real_name" => "Ada",
+                "display_name" => nil,
+                "avatar" => nil,
+                "is_bot" => false
+              }
+            ]
+          })
+      end
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, [%FoPost.SlackChannel{id: "C1", is_current: true}]} =
+             FoPost.Accounts.slack_channels(client, "acc_1")
+
+    assert {:ok, [%FoPost.SlackMember{real_name: "Ada", display_name: nil}]} =
+             FoPost.Accounts.slack_members(client, "acc_1")
+  end
+
+  test "update_slack_identity omits unset keys and sends nil to clear", %{bypass: bypass} do
+    identity = %{"username" => "Bot", "icon_url" => nil, "icon_emoji" => ":rocket:"}
+
+    Bypass.expect(bypass, fn conn ->
+      assert conn.request_path == "/v1/accounts/acc_1/slack/identity"
+
+      case conn.method do
+        "GET" ->
+          TestSupport.json(conn, 200, %{"data" => identity})
+
+        "PATCH" ->
+          {:ok, raw, conn} = Plug.Conn.read_body(conn)
+          assert Jason.decode!(raw) == %{"username" => "Bot", "icon_url" => nil}
+          TestSupport.json(conn, 200, %{"data" => identity})
+      end
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %FoPost.SlackIdentity{icon_emoji: ":rocket:"}} =
+             FoPost.Accounts.slack_identity(client, "acc_1")
+
+    assert {:ok, %FoPost.SlackIdentity{username: "Bot"}} =
+             FoPost.Accounts.update_slack_identity(client, "acc_1",
+               username: "Bot",
+               icon_url: nil
+             )
+  end
+
+  test "slack calls surface a webhook connection as a 409", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/accounts/acc_1/slack/channels", fn conn ->
+      TestSupport.json(conn, 409, %{"error" => "webhook_connection", "message" => "Reconnect"})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:error, %FoPost.Error{status: 409, code: "webhook_connection"}} =
+             FoPost.Accounts.slack_channels(client, "acc_1")
+  end
 end
