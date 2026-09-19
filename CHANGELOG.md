@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-09-19
 
 ### Added
 
@@ -15,6 +15,17 @@ All notable changes to this project are documented in this file. The format foll
 - `FoPost.Accounts.rename/3` and `move/3`, a `:group_id` filter on `list/2`, and
   `:platform_name` on `FoPost.Account`.
 - `FoPost.Posts.create/2` accepts `:account_group_id`, which can stand in for `:accounts`.
+- `FoPost.Inbox`: `like/2`, `unlike/2`, `pin/2`, `unpin/2`, `react/3`, `edit_comment/3`,
+  `start_conversation/2`, and `set_typing/3` (scope `inbox`, plus `publish`).
+- `FoPost.Inbox.reply/3` accepts `:media_ids` and `:quick_replies`; `:text` is optional
+  when `:media_ids` is given.
+- `FoPost.InboxItem`: `:liked`, `:pinned`, `:reaction`, `:edited_at`, `:can_like`,
+  `:can_pin`, `:can_edit`, `:can_react`, `:can_send_media`, `:can_quick_reply`, and
+  `:can_private_reply`. `FoPost.InboxAccount`: `:can_start_conversation`.
+
+### Changed
+
+- `FoPost.Inbox.delete/2` also deletes our own replies.
 
 ## [0.2.0] - 2026-09-19
 
@@ -40,6 +51,6 @@ Initial release.
 - Automatic retries on 429, 5xx, and transport errors, honouring `Retry-After`.
 - Webhook signature verification with a constant-time comparison.
 
-[Unreleased]: https://github.com/fopost/fopost-elixir/compare/v0.2.0...HEAD
+[0.3.0]: https://github.com/fopost/fopost-elixir/releases/tag/v0.3.0
 [0.2.0]: https://github.com/fopost/fopost-elixir/releases/tag/v0.2.0
 [0.1.0]: https://github.com/fopost/fopost-elixir/releases/tag/v0.1.0

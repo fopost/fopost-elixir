@@ -106,7 +106,8 @@ defmodule FoPost.InboxItem do
   One comment, mention, or direct message on a connected account.
 
   `:type` is `"comment"`, `"mention"`, or `"dm"`; `:state` is `"unread"`, `"read"`,
-  `"resolved"`, or `"snoozed"`; `:direction` is `"inbound"` or `"outbound"`.
+  `"resolved"`, or `"snoozed"`; `:direction` is `"inbound"` or `"outbound"`. The `can_*`
+  flags say which actions the platform supports for this item.
   """
 
   alias FoPost.InboxAccountRef
@@ -114,6 +115,8 @@ defmodule FoPost.InboxItem do
   alias FoPost.InboxPostContext
   alias FoPost.Model
 
+  # Flat on purpose: every field mirrors one field of the API's InboxItem.
+  # credo:disable-for-next-line Credo.Check.Warning.StructFieldAmount
   defstruct [
     :id,
     :workspace_id,
@@ -135,8 +138,19 @@ defmodule FoPost.InboxItem do
     :created_at,
     :can_reply,
     :hidden,
+    :liked,
+    :pinned,
+    :reaction,
+    :edited_at,
     :can_hide,
     :can_delete,
+    :can_like,
+    :can_pin,
+    :can_edit,
+    :can_react,
+    :can_send_media,
+    :can_quick_reply,
+    :can_private_reply,
     :post,
     :post_context,
     :account,
@@ -172,8 +186,19 @@ defmodule FoPost.InboxItem do
       created_at: Model.datetime(fields["created_at"]),
       can_reply: fields["can_reply"],
       hidden: fields["hidden"],
+      liked: fields["liked"],
+      pinned: fields["pinned"],
+      reaction: fields["reaction"],
+      edited_at: Model.datetime(fields["edited_at"]),
       can_hide: fields["can_hide"],
       can_delete: fields["can_delete"],
+      can_like: fields["can_like"],
+      can_pin: fields["can_pin"],
+      can_edit: fields["can_edit"],
+      can_react: fields["can_react"],
+      can_send_media: fields["can_send_media"],
+      can_quick_reply: fields["can_quick_reply"],
+      can_private_reply: fields["can_private_reply"],
       post: Model.normalize(fields["post"]),
       post_context: Model.build(InboxPostContext, fields["post_context"]),
       account: Model.build(InboxAccountRef, fields["account"]),
@@ -282,6 +307,7 @@ defmodule FoPost.InboxAccount do
   @moduledoc """
   A connected account and whether its comments (`:inbox_supported`) and direct messages
   (`:dm_supported`) can be read. The `*_pending_reason` fields say why not.
+  `:can_start_conversation` says whether a new DM can be opened from it.
   """
 
   alias FoPost.Model
@@ -297,6 +323,7 @@ defmodule FoPost.InboxAccount do
     :pending_reason,
     :dm_supported,
     :dm_pending_reason,
+    :can_start_conversation,
     :raw
   ]
 
@@ -317,6 +344,7 @@ defmodule FoPost.InboxAccount do
       pending_reason: fields["pending_reason"],
       dm_supported: fields["dm_supported"],
       dm_pending_reason: fields["dm_pending_reason"],
+      can_start_conversation: fields["can_start_conversation"],
       raw: data
     }
   end
@@ -456,6 +484,33 @@ defmodule FoPost.InboxReplyResult do
       item: Model.build(InboxItem, fields["item"]),
       external_id: reply["external_id"],
       external_url: reply["external_url"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.InboxConversationStart do
+  @moduledoc """
+  A started conversation: its `:conversation_id` and the sent message as an item. Either
+  may be `nil` when the platform does not report it.
+  """
+
+  alias FoPost.InboxItem
+  alias FoPost.Model
+
+  defstruct [:conversation_id, :item, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      conversation_id: fields["conversation_id"],
+      item: Model.build(InboxItem, fields["item"]),
       raw: data
     }
   end

@@ -142,4 +142,150 @@ defmodule FoPost.InboxTest do
     assert decision.id == 42
     assert decision.outcome == "sent"
   end
+
+  test "items decode the action state and capability flags", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/inbox", fn conn ->
+      TestSupport.json(conn, 200, %{
+        "data" => [
+          %{
+            "id" => "item_1",
+            "liked" => true,
+            "pinned" => false,
+            "reaction" => "❤",
+            "editedAt" => "2026-09-01T12:00:00Z",
+            "canLike" => true,
+            "canPin" => true,
+            "canEdit" => true,
+            "canReact" => true,
+            "canSendMedia" => false,
+            "canQuickReply" => false,
+            "canPrivateReply" => true
+          }
+        ],
+        "meta" => %{"page" => 1, "perPage" => 20, "total" => 1}
+      })
+    end)
+
+    assert {:ok, %{data: [item]}} = Inbox.list(TestSupport.client(bypass))
+    assert item.liked
+    refute item.pinned
+    assert item.reaction == "❤"
+    assert item.edited_at == ~U[2026-09-01 12:00:00Z]
+    assert item.can_like and item.can_pin and item.can_edit and item.can_react
+    refute item.can_send_media or item.can_quick_reply
+    assert item.can_private_reply
+  end
+
+  test "accounts decode canStartConversation", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/inbox/accounts", fn conn ->
+      TestSupport.json(conn, 200, %{
+        "data" => [%{"id" => "acc_1", "dmSupported" => true, "canStartConversation" => true}]
+      })
+    end)
+
+    assert {:ok, [account]} = Inbox.accounts(TestSupport.client(bypass))
+    assert account.can_start_conversation
+  end
+
+  test "like, unlike, pin, and unpin post to their action path", %{bypass: bypass} do
+    for action <- ["like", "unlike", "pin", "unpin"] do
+      Bypass.expect_once(bypass, "POST", "/v1/inbox/item_1/" <> action, fn conn ->
+        TestSupport.json(conn, 200, %{"data" => %{"id" => "item_1", "liked" => true}})
+      end)
+    end
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %{id: "item_1", liked: true}} = Inbox.like(client, "item_1")
+    assert {:ok, %{id: "item_1"}} = Inbox.unlike(client, "item_1")
+    assert {:ok, %{id: "item_1"}} = Inbox.pin(client, "item_1")
+    assert {:ok, %{id: "item_1"}} = Inbox.unpin(client, "item_1")
+  end
+
+  test "react sends the reaction, and nil as null to remove it", %{bypass: bypass} do
+    Bypass.expect(bypass, "POST", "/v1/inbox/item_1/react", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      reaction = Jason.decode!(raw) |> Map.fetch!("reaction")
+
+      TestSupport.json(conn, 200, %{"data" => %{"id" => "item_1", "reaction" => reaction}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %{reaction: "❤"}} = Inbox.react(client, "item_1", "❤")
+    assert {:ok, %{reaction: nil}} = Inbox.react(client, "item_1", nil)
+  end
+
+  test "edit_comment patches the item with the new text", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "PATCH", "/v1/inbox/item_1", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw) == %{"text" => "Fixed typo"}
+
+      TestSupport.json(conn, 200, %{
+        "data" => %{
+          "id" => "item_1",
+          "text" => "Fixed typo",
+          "editedAt" => "2026-09-01T12:00:00Z"
+        }
+      })
+    end)
+
+    assert {:ok, item} = Inbox.edit_comment(TestSupport.client(bypass), "item_1", "Fixed typo")
+    assert item.text == "Fixed typo"
+    assert item.edited_at == ~U[2026-09-01 12:00:00Z]
+  end
+
+  test "reply sends media_ids and quick_replies without text", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/inbox/item_1/reply", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+      assert Jason.decode!(raw) == %{
+               "media_ids" => ["med_1"],
+               "quick_replies" => ["Yes", "No"]
+             }
+
+      TestSupport.json(conn, 200, %{"data" => %{"item" => %{"id" => "item_1"}}})
+    end)
+
+    opts = [media_ids: ["med_1"], quick_replies: ["Yes", "No"]]
+
+    assert {:ok, result} = Inbox.reply(TestSupport.client(bypass), "item_1", opts)
+    assert result.item.id == "item_1"
+  end
+
+  test "start_conversation sends a snake_case body and decodes the result", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/inbox/conversations", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+      assert Jason.decode!(raw) == %{
+               "account_id" => "acc_1",
+               "handle" => "yourbrand",
+               "text" => "Hi there",
+               "media_ids" => ["med_1"]
+             }
+
+      TestSupport.json(conn, 201, %{
+        "data" => %{"conversationId" => "conv_1", "item" => %{"id" => "item_9", "type" => "dm"}}
+      })
+    end)
+
+    opts = [account_id: "acc_1", handle: "yourbrand", text: "Hi there", media_ids: ["med_1"]]
+
+    assert {:ok, started} = Inbox.start_conversation(TestSupport.client(bypass), opts)
+    assert started.conversation_id == "conv_1"
+    assert started.item.id == "item_9"
+  end
+
+  test "set_typing posts to the conversation and answers the flag", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/inbox/conversations/conv_1/typing", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw) == %{"account_id" => "acc_1", "on" => false}
+
+      TestSupport.json(conn, 200, %{"data" => %{"typing" => false}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, false} = Inbox.set_typing(client, "conv_1", account_id: "acc_1", on: false)
+  end
 end

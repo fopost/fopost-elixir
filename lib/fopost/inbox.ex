@@ -13,6 +13,7 @@ defmodule FoPost.Inbox do
   alias FoPost.InboxAccount
   alias FoPost.InboxApproval
   alias FoPost.InboxConversation
+  alias FoPost.InboxConversationStart
   alias FoPost.InboxDecision
   alias FoPost.InboxItem
   alias FoPost.InboxPlatform
@@ -196,12 +197,29 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
-  Sends a reply on the platform as the connected account. Required: `:text`.
+  Edits our own comment on the platform. Only where `:can_edit` is true. Also needs the
+  `publish` scope.
+  """
+  @spec edit_comment(Client.t(), String.t(), String.t()) ::
+          {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def edit_comment(client, id, text) do
+    with {:ok, data} <- Client.request(client, :patch, path(id), json: %{"text" => text}) do
+      {:ok, InboxItem.from_map(data)}
+    end
+  end
+
+  @doc """
+  Sends a reply on the platform as the connected account. `:text` is required unless
+  `:media_ids` is given.
+
+  A DM reply may also carry `:media_ids` (media library ids, at most 10) and
+  `:quick_replies` (at most 13, each at most 20 characters); either also needs the
+  `publish` scope.
   """
   @spec reply(Client.t(), String.t(), keyword()) ::
           {:ok, InboxReplyResult.t()} | {:error, FoPost.Error.t()}
   def reply(client, id, opts) do
-    body = Model.take_body(opts, [:text])
+    body = Model.take_body(opts, [:text, :media_ids, :quick_replies])
 
     with {:ok, data} <- Client.request(client, :post, path(id, "reply"), json: body) do
       {:ok, InboxReplyResult.from_map(data)}
@@ -229,12 +247,87 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
-  Deletes a comment on the platform.
+  Deletes a comment on the platform, someone else's or our own reply. Deleting our own
+  reply also needs the `publish` scope.
   """
   @spec delete(Client.t(), String.t()) :: {:ok, Message.t()} | {:error, FoPost.Error.t()}
   def delete(client, id) do
     with {:ok, data} <- Client.request(client, :delete, path(id)) do
       {:ok, Message.from_map(data)}
+    end
+  end
+
+  @doc """
+  Likes an item on the platform (an upvote on Reddit, a favourite on Mastodon). Only where
+  `:can_like` is true. Also needs the `publish` scope.
+  """
+  @spec like(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def like(client, id), do: action(client, id, "like")
+
+  @doc """
+  Removes our like. Only where `:can_like` is true. Also needs the `publish` scope.
+  """
+  @spec unlike(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def unlike(client, id), do: action(client, id, "unlike")
+
+  @doc """
+  Pins our own comment. Only where `:can_pin` is true. Also needs the `publish` scope.
+  """
+  @spec pin(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def pin(client, id), do: action(client, id, "pin")
+
+  @doc """
+  Unpins our own comment. Only where `:can_pin` is true. Also needs the `publish` scope.
+  """
+  @spec unpin(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def unpin(client, id), do: action(client, id, "unpin")
+
+  @doc """
+  Reacts to a message with an emoji (at most 32 characters); `nil` removes ours. Only where
+  `:can_react` is true. Also needs the `publish` scope.
+  """
+  @spec react(Client.t(), String.t(), String.t() | nil) ::
+          {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def react(client, id, reaction) do
+    body = %{"reaction" => reaction}
+
+    with {:ok, data} <- Client.request(client, :post, path(id, "react"), json: body) do
+      {:ok, InboxItem.from_map(data)}
+    end
+  end
+
+  @doc """
+  Opens a direct-message conversation and sends the first message. Also needs the
+  `publish` scope.
+
+  Required: `:text`, plus either `:handle` and `:account_id` (where the account's
+  `:can_start_conversation` is true), or `:comment_id` for a private reply to an inbox
+  comment (where the item's `:can_private_reply` is true). Optional: `:media_ids`, at
+  most 10.
+  """
+  @spec start_conversation(Client.t(), keyword()) ::
+          {:ok, InboxConversationStart.t()} | {:error, FoPost.Error.t()}
+  def start_conversation(client, opts) do
+    body = Model.take_body(opts, [:account_id, :handle, :comment_id, :text, :media_ids])
+
+    with {:ok, data} <- Client.request(client, :post, "/inbox/conversations", json: body) do
+      {:ok, InboxConversationStart.from_map(data)}
+    end
+  end
+
+  @doc """
+  Shows the typing indicator in a DM thread, or clears it with `on: false`; answers
+  whether it is now on. `conversation_id` is the thread's `:conversation_id`. Required:
+  `:account_id`. Also needs the `publish` scope.
+  """
+  @spec set_typing(Client.t(), String.t(), keyword()) ::
+          {:ok, boolean()} | {:error, FoPost.Error.t()}
+  def set_typing(client, conversation_id, opts) do
+    body = Model.take_body(opts, [:account_id, :on])
+    typing_path = "/inbox/conversations/" <> encode(conversation_id) <> "/typing"
+
+    with {:ok, data} <- Client.request(client, :post, typing_path, json: body) do
+      {:ok, typing(data)}
     end
   end
 
@@ -302,6 +395,9 @@ defmodule FoPost.Inbox do
   @doc "Same as `update/3`, but raises `FoPost.Error`."
   def update!(client, id, opts), do: Result.unwrap!(update(client, id, opts))
 
+  @doc "Same as `edit_comment/3`, but raises `FoPost.Error`."
+  def edit_comment!(client, id, text), do: Result.unwrap!(edit_comment(client, id, text))
+
   @doc "Same as `reply/3`, but raises `FoPost.Error`."
   def reply!(client, id, opts), do: Result.unwrap!(reply(client, id, opts))
 
@@ -314,6 +410,28 @@ defmodule FoPost.Inbox do
   @doc "Same as `delete/2`, but raises `FoPost.Error`."
   def delete!(client, id), do: Result.unwrap!(delete(client, id))
 
+  @doc "Same as `like/2`, but raises `FoPost.Error`."
+  def like!(client, id), do: Result.unwrap!(like(client, id))
+
+  @doc "Same as `unlike/2`, but raises `FoPost.Error`."
+  def unlike!(client, id), do: Result.unwrap!(unlike(client, id))
+
+  @doc "Same as `pin/2`, but raises `FoPost.Error`."
+  def pin!(client, id), do: Result.unwrap!(pin(client, id))
+
+  @doc "Same as `unpin/2`, but raises `FoPost.Error`."
+  def unpin!(client, id), do: Result.unwrap!(unpin(client, id))
+
+  @doc "Same as `react/3`, but raises `FoPost.Error`."
+  def react!(client, id, reaction), do: Result.unwrap!(react(client, id, reaction))
+
+  @doc "Same as `start_conversation/2`, but raises `FoPost.Error`."
+  def start_conversation!(client, opts), do: Result.unwrap!(start_conversation(client, opts))
+
+  @doc "Same as `set_typing/3`, but raises `FoPost.Error`."
+  def set_typing!(client, conversation_id, opts),
+    do: Result.unwrap!(set_typing(client, conversation_id, opts))
+
   @doc "Same as `approvals/2`, but raises `FoPost.Error`."
   def approvals!(client, opts \\ []), do: Result.unwrap!(approvals(client, opts))
 
@@ -322,6 +440,12 @@ defmodule FoPost.Inbox do
 
   @doc "Same as `reject_reply/2`, but raises `FoPost.Error`."
   def reject_reply!(client, id), do: Result.unwrap!(reject_reply(client, id))
+
+  defp action(client, id, action) do
+    with {:ok, data} <- Client.request(client, :post, path(id, action)) do
+      {:ok, InboxItem.from_map(data)}
+    end
+  end
 
   defp put_snoozed_until(body, opts) do
     case Keyword.fetch(opts, :snoozed_until) do
@@ -332,6 +456,9 @@ defmodule FoPost.Inbox do
 
   defp count(%{"count" => count}) when is_integer(count), do: count
   defp count(_data), do: 0
+
+  defp typing(%{"typing" => typing}) when is_boolean(typing), do: typing
+  defp typing(_data), do: false
 
   defp updated(%{"updated" => updated}) when is_integer(updated), do: updated
   defp updated(_data), do: 0
