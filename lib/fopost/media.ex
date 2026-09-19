@@ -17,12 +17,20 @@ defmodule FoPost.Media do
 
   A file is a path, a `{filename, content}` tuple, or a map of `:filename`, `:content`,
   and optionally `:content_type`.
+
+  A direct upload skips the API for the bytes themselves: `presign/2` issues a one-time
+  URL, the file is `PUT` there, and `complete/2` files it in the library.
+  `upload_direct/5` does all three.
+
+      {:ok, asset} =
+        FoPost.Media.upload_direct(client, workspace.id, "chart.png", "image/png", bytes)
   """
 
   alias FoPost.Client
   alias FoPost.MediaAsset
   alias FoPost.Message
   alias FoPost.Model
+  alias FoPost.PresignedUpload
   alias FoPost.Result
 
   @content_types %{
@@ -72,6 +80,58 @@ defmodule FoPost.Media do
   end
 
   @doc """
+  Issues a presigned URL for a direct upload.
+
+  Required: `:workspace_id`, `:filename`, `:mime_type`, and `:size` in bytes (up to 50 MB).
+  """
+  @spec presign(Client.t(), keyword()) ::
+          {:ok, PresignedUpload.t()} | {:error, FoPost.Error.t()}
+  def presign(client, opts) do
+    body =
+      Model.take_body(opts, [
+        {:workspace_id, "workspaceId"},
+        :filename,
+        {:mime_type, "mimeType"},
+        :size
+      ])
+
+    with {:ok, data} <- Client.request(client, :post, "/media/presign", json: body) do
+      {:ok, PresignedUpload.from_map(data)}
+    end
+  end
+
+  @doc """
+  Files a direct upload in the library once its bytes have been `PUT` to the presigned URL.
+  """
+  @spec complete(Client.t(), String.t()) :: {:ok, MediaAsset.t()} | {:error, FoPost.Error.t()}
+  def complete(client, upload_id) do
+    id = URI.encode(to_string(upload_id), &URI.char_unreserved?/1)
+
+    with {:ok, data} <- Client.request(client, :post, "/media/presign/" <> id <> "/complete") do
+      {:ok, MediaAsset.from_map(data)}
+    end
+  end
+
+  @doc """
+  Presigns, uploads `binary` with the issued headers and no API key, then completes.
+  """
+  @spec upload_direct(Client.t(), String.t(), String.t(), String.t(), binary()) ::
+          {:ok, MediaAsset.t()} | {:error, FoPost.Error.t()}
+  def upload_direct(client, workspace_id, filename, mime_type, binary) when is_binary(binary) do
+    opts = [
+      workspace_id: workspace_id,
+      filename: filename,
+      mime_type: mime_type,
+      size: byte_size(binary)
+    ]
+
+    with {:ok, presigned} <- presign(client, opts),
+         {:ok, _body} <- Client.put_raw(client, presigned.upload_url, presigned.headers, binary) do
+      complete(client, presigned.upload_id)
+    end
+  end
+
+  @doc """
   Removes an asset from the library.
   """
   @spec delete(Client.t(), String.t()) :: {:ok, Message.t()} | {:error, FoPost.Error.t()}
@@ -88,6 +148,17 @@ defmodule FoPost.Media do
 
   @doc "Same as `upload/2`, but raises `FoPost.Error`."
   def upload!(client, opts), do: Result.unwrap!(upload(client, opts))
+
+  @doc "Same as `presign/2`, but raises `FoPost.Error`."
+  def presign!(client, opts), do: Result.unwrap!(presign(client, opts))
+
+  @doc "Same as `complete/2`, but raises `FoPost.Error`."
+  def complete!(client, upload_id), do: Result.unwrap!(complete(client, upload_id))
+
+  @doc "Same as `upload_direct/5`, but raises `FoPost.Error`."
+  def upload_direct!(client, workspace_id, filename, mime_type, binary) do
+    Result.unwrap!(upload_direct(client, workspace_id, filename, mime_type, binary))
+  end
 
   @doc "Same as `delete/2`, but raises `FoPost.Error`."
   def delete!(client, id), do: Result.unwrap!(delete(client, id))
