@@ -52,7 +52,7 @@ Req's own application owns the connection pool.
 | `lib/fopost/page.ex` | `FoPost.Page` and `FoPost.PageMeta` |
 | `lib/fopost/content.ex` | `FoPost.MediaItem`, `FoPost.ContentBlock`, and `FoPost.Content` (post body building) |
 | `lib/fopost/models/*.ex` | One response struct per API shape, each with `from_map/1` |
-| `lib/fopost/<resource>.ex` | One module per resource: posts, workspaces, accounts, communities, labels, webhooks, analytics, automations, media |
+| `lib/fopost/<resource>.ex` | One module per resource: posts, workspaces, accounts, communities, labels, webhooks, analytics, automations, media, inbox, ads |
 
 A request flows: a resource function builds its params with `Model.take_params/2` and its
 body with `Model.take_body/2` → `Client.request(client, method, path, opts)` → `Req.new/1`

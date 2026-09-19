@@ -223,7 +223,33 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 `FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.Communities` ·
 `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` · `FoPost.Automations` ·
-`FoPost.Media`
+`FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads`
+
+## Inbox and ads
+
+`FoPost.Inbox` reads comments, mentions, and direct messages on connected accounts and
+replies as the account (scope `inbox`). `FoPost.Ads` boosts posts, creates ads,
+audiences, and lead forms (scope `ads`; `boost/2`, `create/2`, `set_status/3`, and
+`delete/3` spend money and also need `publish`). A boost or an ad starts paused unless
+`paused: false`.
+
+```elixir
+{:ok, page} = FoPost.Inbox.list(client, workspace_id: workspace.id, state: "unread")
+{:ok, result} = FoPost.Inbox.reply(client, hd(page.data).id, text: "Thanks!")
+
+{:ok, ad} =
+  FoPost.Ads.boost(client,
+    workspace_id: workspace.id,
+    connection_id: connection.id,
+    ad_account_id: "act_123",
+    post_id: post.id,
+    account_id: account.id,
+    name: "Launch week",
+    goal: "engagement",
+    budget: %{minor: 5_000, type: "daily"},
+    targeting: %{countries: ["US"], ageMin: 18, ageMax: 65, gender: "all"}
+  )
+```
 
 ## Examples
 
