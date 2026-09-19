@@ -108,6 +108,15 @@ All notable changes to this project are documented in this file. The format foll
   `tiktok_video_lookup/3`), Instagram audio, publishing limit and stories
   (`instagram_audio/3`, `instagram_publishing_limit/2`, `instagram_stories/3`,
   `instagram_story_insights/3`), and LinkedIn mentions (`linkedin_mentions/3`).
+- `FoPost.Accounts.reddit_subreddits/2`, `reddit_subreddit_rules/3`, `reddit_flairs/3`, and
+  `set_reddit_default_subreddit/3` read the subreddits a Reddit account is in, a
+  subreddit's rules and post flairs, and set where posts go when a post names none (scope
+  `accounts`).
+- `FoPost.Validate.subreddit/2` answers whether a subreddit exists and takes a post from an
+  account, before a post exists (scope `posts`).
+- `FoPost.Inbox.vote/3` votes an item up or down, or takes the vote back with `"none"`
+  (scopes `inbox` and `publish`).
+- `:reconnect_required` on `FoPost.Account`, and `:vote` and `:can_vote` on an inbox item.
 
 ### Changed
 
