@@ -169,4 +169,180 @@ defmodule FoPost.AdsTest do
     assert [%{"name" => "full_name"}] = lead.fields
     assert is_nil(page.next_cursor)
   end
+
+  test "account_tree nests campaigns, ad sets, and ads", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/ads/accounts/act_123/tree", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params == %{"workspace_id" => "ws_1", "connection_id" => "conn_1"}
+
+      ad = %{"id" => "a_1", "creativeId" => "cr_1", "status" => "PAUSED"}
+      ad_set = %{"id" => "s_1", "name" => "US", "budgetMinor" => 500, "ads" => [ad]}
+
+      TestSupport.json(conn, 200, %{
+        "data" => %{
+          "adAccountId" => "act_123",
+          "currency" => "USD",
+          "campaigns" => [%{"id" => "c_1", "name" => "Spring", "adSets" => [ad_set]}]
+        }
+      })
+    end)
+
+    client = TestSupport.client(bypass)
+    opts = [workspace_id: "ws_1", connection_id: "conn_1"]
+
+    assert {:ok, tree} = Ads.account_tree(client, "act_123", opts)
+    assert tree.currency == "USD"
+    assert [campaign] = tree.campaigns
+    assert [ad_set] = campaign.ad_sets
+    assert ad_set.budget_minor == 500
+    assert [%{creative_id: "cr_1"}] = ad_set.ads
+  end
+
+  test "duplicate_campaign posts paused and answers the copy's id", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/ads/campaigns/c_1/duplicate", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params == %{"workspace_id" => "ws_1", "connection_id" => "conn_1"}
+
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw) == %{"paused" => true}
+
+      TestSupport.json(conn, 201, %{"data" => %{"id" => "c_2"}})
+    end)
+
+    client = TestSupport.client(bypass)
+    opts = [workspace_id: "ws_1", connection_id: "conn_1", paused: true]
+
+    assert {:ok, "c_2"} = Ads.duplicate_campaign(client, "c_1", opts)
+  end
+
+  test "bulk_set_status sends the objects and decodes each result", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/ads/status", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      body = Jason.decode!(raw)
+
+      assert body["status"] == "paused"
+      assert body["objects"] == [%{"id" => "c_1", "level" => "campaign"}]
+
+      TestSupport.json(conn, 200, %{
+        "data" => [%{"id" => "c_1", "level" => "campaign", "ok" => false, "error" => "Denied"}]
+      })
+    end)
+
+    opts = [
+      workspace_id: "ws_1",
+      connection_id: "conn_1",
+      status: "paused",
+      objects: [%{id: "c_1", level: "campaign"}]
+    ]
+
+    assert {:ok, [result]} = Ads.bulk_set_status(TestSupport.client(bypass), opts)
+    assert result.ok == false
+    assert result.error == "Denied"
+  end
+
+  test "leads_feed passes the cursor and answers the next one", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/ads/leads", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+
+      assert conn.query_params == %{
+               "workspace_id" => "ws_1",
+               "form_id" => "form_1",
+               "cursor" => "cur_1",
+               "limit" => "50"
+             }
+
+      TestSupport.json(conn, 200, %{
+        "data" => %{
+          "leads" => [
+            %{
+              "id" => "l_1",
+              "leadId" => "meta_1",
+              "submittedAt" => "2026-09-01T10:00:00Z",
+              "fields" => [%{"name" => "email", "values" => ["a@yourbrand.com"]}]
+            }
+          ],
+          "nextCursor" => "cur_2"
+        }
+      })
+    end)
+
+    client = TestSupport.client(bypass)
+    opts = [workspace_id: "ws_1", form_id: "form_1", cursor: "cur_1", limit: 50]
+
+    assert {:ok, page} = Ads.leads_feed(client, opts)
+    assert [lead] = page.leads
+    assert lead.lead_id == "meta_1"
+    assert lead.submitted_at == ~U[2026-09-01 10:00:00Z]
+    assert page.next_cursor == "cur_2"
+  end
+
+  test "insights sends the range, breakdown, and daily flag", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/ads/insights", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+
+      assert conn.query_params == %{
+               "connection_id" => "conn_1",
+               "object_id" => "c_1",
+               "since" => "2026-09-01",
+               "until" => "2026-09-07",
+               "breakdown" => "age",
+               "daily" => "true"
+             }
+
+      TestSupport.json(conn, 200, %{
+        "data" => %{
+          "objectId" => "c_1",
+          "since" => "2026-09-01",
+          "until" => "2026-09-07",
+          "breakdownBy" => "age",
+          "totals" => %{"impressions" => 10, "spendMinor" => 99, "ctr" => 1.5},
+          "breakdown" => [%{"key" => "18-24", "metrics" => %{"clicks" => 2}}],
+          "timeline" => [%{"date" => "2026-09-01", "metrics" => %{"reach" => 7}}]
+        }
+      })
+    end)
+
+    opts = [
+      connection_id: "conn_1",
+      object_id: "c_1",
+      since: "2026-09-01",
+      until: "2026-09-07",
+      breakdown: "age",
+      daily: true
+    ]
+
+    assert {:ok, report} = Ads.insights(TestSupport.client(bypass), opts)
+    assert report.object_id == "c_1"
+    assert report.breakdown_by == "age"
+    assert report.totals.spend_minor == 99
+    assert [%{key: "18-24", metrics: %{clicks: 2}}] = report.breakdown
+    assert [%{date: "2026-09-01", metrics: %{reach: 7}}] = report.timeline
+  end
+
+  test "create sends url_tags", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/ads", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw)["urlTags"] == "utm_source=meta"
+
+      TestSupport.json(conn, 201, %{
+        "data" => %{"id" => "ad_1", "creative" => %{"urlTags" => "utm_source=meta"}}
+      })
+    end)
+
+    opts = [
+      workspace_id: "ws_1",
+      connection_id: "conn_1",
+      ad_account_id: "act_123",
+      page_id: "42",
+      name: "Tagged",
+      goal: "traffic",
+      budget: %{minor: 5000, type: "daily"},
+      targeting: %{countries: ["US"]},
+      text: "Hi",
+      url_tags: "utm_source=meta"
+    ]
+
+    assert {:ok, ad} = Ads.create(TestSupport.client(bypass), opts)
+    assert ad.creative["url_tags"] == "utm_source=meta"
+  end
 end
