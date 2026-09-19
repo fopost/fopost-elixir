@@ -10,6 +10,11 @@ All notable changes to this project are documented in this file. The format foll
 
 - `FoPost.Validate`: `post/2`, `length/2`, and `media/2` check content, text length, and a
   media URL against platform rules without creating a post (scope `posts`).
+- `FoPost.AccountGroups`: `list/2`, `get/2`, `create/2`, `update/3`, `delete/2`, and
+  `set_members/3` (scope `accounts`).
+- `FoPost.Accounts.rename/3` and `move/3`, a `:group_id` filter on `list/2`, and
+  `:platform_name` on `FoPost.Account`.
+- `FoPost.Posts.create/2` accepts `:account_group_id`, which can stand in for `:accounts`.
 
 ## [0.2.0] - 2026-09-19
 

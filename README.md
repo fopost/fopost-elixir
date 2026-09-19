@@ -232,9 +232,9 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 ## Resources
 
-`FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.Communities` ·
-`FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` · `FoPost.Automations` ·
-`FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate`
+`FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.AccountGroups` ·
+`FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate`
 
 ## Inbox and ads
 
