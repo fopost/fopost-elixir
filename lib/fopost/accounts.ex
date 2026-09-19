@@ -14,6 +14,9 @@ defmodule FoPost.Accounts do
   alias FoPost.Message
   alias FoPost.Model
   alias FoPost.Result
+  alias FoPost.SlackChannel
+  alias FoPost.SlackIdentity
+  alias FoPost.SlackMember
   alias FoPost.TelegramBotCommand
   alias FoPost.TelegramConnectCode
   alias FoPost.TelegramConnectStatus
@@ -250,6 +253,59 @@ defmodule FoPost.Accounts do
     end
   end
 
+  @doc """
+  Channels the Slack app can post to: every public channel, and private ones the app was
+  invited to. A 409 whose `code` is `"webhook_connection"` means the account posts through
+  a webhook.
+  """
+  @spec slack_channels(Client.t(), String.t()) ::
+          {:ok, [SlackChannel.t()]} | {:error, FoPost.Error.t()}
+  def slack_channels(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/slack/channels") do
+      {:ok, Model.list(SlackChannel, data)}
+    end
+  end
+
+  @doc """
+  People in the connected Slack workspace, for addressing a DM.
+  """
+  @spec slack_members(Client.t(), String.t()) ::
+          {:ok, [SlackMember.t()]} | {:error, FoPost.Error.t()}
+  def slack_members(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/slack/members") do
+      {:ok, Model.list(SlackMember, data)}
+    end
+  end
+
+  @doc """
+  The name and icon a Slack account posts under.
+  """
+  @spec slack_identity(Client.t(), String.t()) ::
+          {:ok, SlackIdentity.t()} | {:error, FoPost.Error.t()}
+  def slack_identity(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/slack/identity") do
+      {:ok, SlackIdentity.from_map(data)}
+    end
+  end
+
+  @doc """
+  Sets the name and icon a Slack account posts under.
+
+  Options: `:username` (1-80 characters), `:icon_url` (an http(s) URL), and `:icon_emoji`
+  (such as `":rocket:"`). A key left out keeps its value and `nil` clears it. Set
+  `:icon_url` or `:icon_emoji`, not both; setting one clears the other.
+  """
+  @spec update_slack_identity(Client.t(), String.t(), keyword()) ::
+          {:ok, SlackIdentity.t()} | {:error, FoPost.Error.t()}
+  def update_slack_identity(client, id, opts) do
+    body = Model.take_body(opts, [:username, :icon_url, :icon_emoji])
+
+    with {:ok, data} <-
+           Client.request(client, :patch, path(id) <> "/slack/identity", json: body) do
+      {:ok, SlackIdentity.from_map(data)}
+    end
+  end
+
   @doc "Same as `list/2`, but raises `FoPost.Error`."
   def list!(client, opts \\ []), do: Result.unwrap!(list(client, opts))
 
@@ -304,6 +360,19 @@ defmodule FoPost.Accounts do
   @doc "Same as `delete_telegram_bot_commands/2`, but raises `FoPost.Error`."
   def delete_telegram_bot_commands!(client, id),
     do: Result.unwrap!(delete_telegram_bot_commands(client, id))
+
+  @doc "Same as `slack_channels/2`, but raises `FoPost.Error`."
+  def slack_channels!(client, id), do: Result.unwrap!(slack_channels(client, id))
+
+  @doc "Same as `slack_members/2`, but raises `FoPost.Error`."
+  def slack_members!(client, id), do: Result.unwrap!(slack_members(client, id))
+
+  @doc "Same as `slack_identity/2`, but raises `FoPost.Error`."
+  def slack_identity!(client, id), do: Result.unwrap!(slack_identity(client, id))
+
+  @doc "Same as `update_slack_identity/3`, but raises `FoPost.Error`."
+  def update_slack_identity!(client, id, opts),
+    do: Result.unwrap!(update_slack_identity(client, id, opts))
 
   defp commands_path(id), do: path(id) <> "/telegram/commands"
 

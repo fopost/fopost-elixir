@@ -318,3 +318,89 @@ defmodule FoPost.TelegramBotCommand do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.SlackChannel do
+  @moduledoc """
+  A Slack channel the app can post to. `:is_member` says whether the bot is in it and
+  `:is_current` whether this account posts to it.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :name, :is_private, :is_member, :is_current, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      is_private: fields["is_private"],
+      is_member: fields["is_member"],
+      is_current: fields["is_current"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.SlackMember do
+  @moduledoc """
+  A person in the connected Slack workspace. Pass `:id` as the handle to start a DM.
+  `:real_name`, `:display_name`, and `:avatar` may be `nil`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :name, :real_name, :display_name, :avatar, :is_bot, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      real_name: fields["real_name"],
+      display_name: fields["display_name"],
+      avatar: fields["avatar"],
+      is_bot: fields["is_bot"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.SlackIdentity do
+  @moduledoc """
+  The name and icon a Slack account posts under. A `nil` `:username` posts under the app
+  name; `:icon_emoji` is a code such as `":rocket:"`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:username, :icon_url, :icon_emoji, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      username: fields["username"],
+      icon_url: fields["icon_url"],
+      icon_emoji: fields["icon_emoji"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
