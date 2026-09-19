@@ -15,6 +15,10 @@ All notable changes to this project are documented in this file. The format foll
 - `FoPost.Accounts.rename/3` and `move/3`, a `:group_id` filter on `list/2`, and
   `:platform_name` on `FoPost.Account`.
 - `FoPost.Posts.create/2` accepts `:account_group_id`, which can stand in for `:accounts`.
+- `FoPost.Accounts.create_telegram_connect_code/2` and `telegram_connect_status/2` connect a
+  Telegram chat with a one-time code; `telegram_bot_commands/2`,
+  `set_telegram_bot_commands/3`, and `delete_telegram_bot_commands/2` manage the bot's
+  command menu in a connected chat (scope `accounts`).
 - `FoPost.Inbox`: `like/2`, `unlike/2`, `pin/2`, `unpin/2`, `react/3`, `edit_comment/3`,
   `start_conversation/2`, and `set_typing/3` (scope `inbox`, plus `publish`).
 - `FoPost.Inbox.reply/3` accepts `:media_ids` and `:quick_replies`; `:text` is optional
