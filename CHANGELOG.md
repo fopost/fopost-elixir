@@ -8,6 +8,9 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `Ads.authorize/2` takes a `:provider`, so a connection can be started on any ad network
+  the API lists, not only Meta. `Ads.authorize_meta/2` delegates to it and is deprecated.
+
 - `FoPost.Accounts.slack_channels/2`, `slack_members/2`, `slack_identity/2`, and
   `update_slack_identity/3` read a Slack account's channels and workspace members and set
   the name and icon it posts under; a `nil` option clears a field (scope `accounts`).

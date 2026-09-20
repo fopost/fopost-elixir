@@ -93,6 +93,20 @@ defmodule FoPost.AdsTest do
     assert message.message == "Ad deleted"
   end
 
+  test "authorize names its ad network in the path", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/ads/connections/pinterest/authorize", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw) == %{"workspaceId" => "ws_1"}
+
+      TestSupport.json(conn, 200, %{"data" => %{"url" => "https://www.pinterest.com/oauth/"}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, "https://www.pinterest.com/oauth/"} =
+             Ads.authorize(client, workspace_id: "ws_1", provider: "pinterest")
+  end
+
   test "authorize_meta answers the login URL", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/v1/ads/connections/meta/authorize", fn conn ->
       {:ok, raw, conn} = Plug.Conn.read_body(conn)
@@ -108,7 +122,7 @@ defmodule FoPost.AdsTest do
     client = TestSupport.client(bypass)
     opts = [workspace_id: "ws_1", return_to: "https://yourbrand.com"]
 
-    assert {:ok, "https://login.example/oauth"} = Ads.authorize_meta(client, opts)
+    assert {:ok, "https://login.example/oauth"} = Ads.authorize(client, opts)
   end
 
   test "audiences requires the connection and ad account in the query", %{bypass: bypass} do

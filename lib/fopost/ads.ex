@@ -1,6 +1,6 @@
 defmodule FoPost.Ads do
   @moduledoc """
-  Meta ads: boosts, standalone ads, audiences, targeting, and lead forms.
+  Ads across ad networks: boosts, standalone ads, audiences, targeting, and lead forms.
 
   Every function needs the `ads` scope. `boost/2`, `create/2`, `set_status/3`,
   `delete/3`, `bulk_set_status/2`, and the create, update, delete, and duplicate
@@ -217,19 +217,31 @@ defmodule FoPost.Ads do
   end
 
   @doc """
-  The Meta login URL; finish it in a browser. Required: `:workspace_id`. Optional:
-  `:method` (`business`, `user`), `:return_to`.
+  The ad network's login URL; finish it in a browser. Required: `:workspace_id`.
+  Optional: `:provider` (the ad network, `meta` by default), `:method` (the
+  network's own login method, `business` or `user` on Meta), `:return_to`.
+
+  A network that is not available on the deployment answers 503.
   """
-  @spec authorize_meta(Client.t(), keyword()) :: {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def authorize_meta(client, opts) do
+  @spec authorize(Client.t(), keyword()) :: {:ok, String.t()} | {:error, FoPost.Error.t()}
+  def authorize(client, opts) do
+    provider = Keyword.get(opts, :provider, "meta")
+
     body =
       Model.take_body(opts, [{:workspace_id, "workspaceId"}, :method, {:return_to, "returnTo"}])
 
     with {:ok, data} <-
-           Client.request(client, :post, "/ads/connections/meta/authorize", json: body) do
+           Client.request(client, :post, "/ads/connections/#{provider}/authorize", json: body) do
       {:ok, url(data)}
     end
   end
+
+  @doc """
+  The Meta login URL.
+  """
+  @deprecated "Use authorize/2, which takes a :provider"
+  @spec authorize_meta(Client.t(), keyword()) :: {:ok, String.t()} | {:error, FoPost.Error.t()}
+  def authorize_meta(client, opts), do: authorize(client, Keyword.delete(opts, :provider))
 
   @doc """
   Disconnects an ads login. Every ad record created through it is deleted too.
