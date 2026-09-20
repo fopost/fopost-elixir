@@ -439,3 +439,32 @@ Questions and bug reports go to
 ## License
 
 MIT © Porter Bridge, LLC. See [LICENSE](LICENSE).
+
+### Google Ads
+
+Campaigns, ad groups, ads, audiences, and insights are on `FoPost.Ads` and dispatch by
+connection. What only Google has is in `FoPost.GoogleAds`:
+
+```elixir
+{:ok, keywords} =
+  FoPost.GoogleAds.keywords(client,
+    connection_id: connection.id,
+    customer_id: "1234567890"
+  )
+
+{:ok, id} =
+  FoPost.GoogleAds.create_keyword(client,
+    workspace_id: workspace.id,
+    connection_id: connection.id,
+    customer_id: "1234567890",
+    ad_group_id: "1234567890~adGroup~77",
+    text: "running shoes",
+    match_type: "EXACT"
+  )
+```
+
+Also `keyword_ideas/2`, `keyword_metrics/2`, `search_terms/2`, `bid_strategies/2`,
+`ad_schedule/2` and `set_ad_schedule/2`, the negative keyword lists, `assets/2` and
+`asset_groups/2`, `local_services_leads/2`, the conversion functions, and `query/2` for a
+raw read-only GAQL SELECT. Changes need the `publish` scope as well as `ads`;
+`:customer_id` has to name an account the connection's grant reaches.

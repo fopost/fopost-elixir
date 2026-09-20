@@ -3,6 +3,8 @@ defmodule FoPost.Ads do
   Meta ads: boosts, standalone ads, catalogs, audiences, targeting, predictions,
   the public ad archive, and lead forms.
 
+  The Google-only surface is `FoPost.GoogleAds`.
+
   Every function needs the `ads` scope. `boost/2`, `create/2`, `set_status/3`,
   `delete/3`, `bulk_set_status/2`, and the create, update, delete, and duplicate
   functions for campaigns, ad sets, and network ads spend money and also need the
@@ -280,6 +282,20 @@ defmodule FoPost.Ads do
 
     with {:ok, data} <-
            Client.request(client, :post, "/ads/connections/meta/authorize", json: body) do
+      {:ok, url(data)}
+    end
+  end
+
+  @doc """
+  The Google login URL. The caller finishes it in their own browser session: the
+  callback checks that the same user came back. Required: `:workspace_id`.
+  """
+  @spec authorize_google(Client.t(), keyword()) :: {:ok, String.t()} | {:error, FoPost.Error.t()}
+  def authorize_google(client, opts) do
+    body = Model.take_body(opts, [{:workspace_id, "workspaceId"}, {:return_to, "returnTo"}])
+
+    with {:ok, data} <-
+           Client.request(client, :post, "/ads/connections/google/authorize", json: body) do
       {:ok, url(data)}
     end
   end
