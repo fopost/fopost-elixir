@@ -31,36 +31,28 @@ defmodule FoPost.Ads do
   """
 
   alias FoPost.Ad
-  alias FoPost.AdActivityResult
-  alias FoPost.AdLabel
-  alias FoPost.AdLibraryPage
-  alias FoPost.AdStudy
-  alias FoPost.CatalogBatchResult
-  alias FoPost.CatalogProductsPage
-  alias FoPost.HighDemandPeriod
-  alias FoPost.IosCampaignLimits
-  alias FoPost.PartnershipCreator
-  alias FoPost.ProductCatalog
-  alias FoPost.ProductFeed
-  alias FoPost.ProductFeedUpload
-  alias FoPost.ProductSet
-  alias FoPost.ReachFrequencyPrediction
-  alias FoPost.ReachFrequencyResult
-  alias FoPost.ValueRuleSet
   alias FoPost.AdAccountTree
+  alias FoPost.AdActivityResult
   alias FoPost.AdCampaign
   alias FoPost.AdConnection
   alias FoPost.AdCreative
   alias FoPost.AdInsightsReport
+  alias FoPost.AdLabel
+  alias FoPost.AdLibraryPage
   alias FoPost.AdSet
   alias FoPost.AdSource
+  alias FoPost.AdStudy
   alias FoPost.Audience
   alias FoPost.AudiencesResult
   alias FoPost.BoostablePost
   alias FoPost.BulkAdStatusResult
+  alias FoPost.CatalogBatchResult
+  alias FoPost.CatalogProductsPage
   alias FoPost.Client
   alias FoPost.CreatedAudience
   alias FoPost.ExternalAd
+  alias FoPost.HighDemandPeriod
+  alias FoPost.IosCampaignLimits
   alias FoPost.LeadFormDetail
   alias FoPost.LeadFormSource
   alias FoPost.LeadPage
@@ -70,9 +62,17 @@ defmodule FoPost.Ads do
   alias FoPost.Message
   alias FoPost.Model
   alias FoPost.NetworkAd
+  alias FoPost.PartnershipCreator
+  alias FoPost.ProductCatalog
+  alias FoPost.ProductFeed
+  alias FoPost.ProductFeedUpload
+  alias FoPost.ProductSet
   alias FoPost.ReachEstimate
+  alias FoPost.ReachFrequencyPrediction
+  alias FoPost.ReachFrequencyResult
   alias FoPost.Result
   alias FoPost.TargetingOption
+  alias FoPost.ValueRuleSet
 
   @spend_fields [
     {:workspace_id, "workspaceId"},
@@ -1422,10 +1422,12 @@ defmodule FoPost.Ads do
   @spec library(Client.t(), keyword()) ::
           {:ok, AdLibraryPage.t()} | {:error, FoPost.Error.t()}
   def library(client, opts) do
+    # `take_params/2` answers a keyword list of wire keys, so the two joined
+    # lists are appended in the same shape rather than put into a map.
     params =
       opts
       |> Model.take_params([:workspace_id, :connection_id, :q, :active_status, :limit, :after])
-      |> Map.put("countries", Enum.join(List.wrap(opts[:countries]), ","))
+      |> Kernel.++([{"countries", Enum.join(List.wrap(opts[:countries]), ",")}])
       |> put_joined("page_ids", opts[:page_ids])
 
     with {:ok, data} <- Client.request(client, :get, "/ads/library", params: params) do
@@ -1807,7 +1809,7 @@ defmodule FoPost.Ads do
 
   defp put_joined(params, _key, nil), do: params
   defp put_joined(params, _key, []), do: params
-  defp put_joined(params, key, values), do: Map.put(params, key, Enum.join(values, ","))
+  defp put_joined(params, key, values), do: params ++ [{key, Enum.join(values, ",")}]
 
   defp catalogs_list(%{"catalogs" => catalogs}) when is_list(catalogs), do: catalogs
   defp catalogs_list(_data), do: []
