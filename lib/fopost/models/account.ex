@@ -405,6 +405,130 @@ defmodule FoPost.SlackIdentity do
   def from_map(_data), do: nil
 end
 
+defmodule FoPost.MetaIceBreaker do
+  @moduledoc """
+  A tappable prompt Messenger or Instagram shows before the first message.
+  `:question` is up to 80 characters and `:payload` is what your webhook receives.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:question, :payload, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{question: fields["question"], payload: fields["payload"], raw: data}
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.MetaMenuItem do
+  @moduledoc """
+  A persistent-menu item: a `"postback"` carrying `:payload`, or a `"web_url"` carrying an
+  http(s) `:url`. The unused one is `nil`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:type, :title, :payload, :url, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      type: fields["type"],
+      title: fields["title"],
+      payload: fields["payload"],
+      url: fields["url"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.MetaPersistentMenuEntry do
+  @moduledoc """
+  One locale's menu; `"default"` is the fallback every language uses.
+  """
+
+  alias FoPost.{MetaMenuItem, Model}
+
+  defstruct [:locale, :call_to_actions, :composer_input_disabled, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      locale: fields["locale"] || "default",
+      call_to_actions: Model.list(MetaMenuItem, fields["call_to_actions"]),
+      composer_input_disabled: fields["composer_input_disabled"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.MetaGreetingText do
+  @moduledoc """
+  One locale's greeting, up to 160 characters.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:locale, :text, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{locale: fields["locale"] || "default", text: fields["text"], raw: data}
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.WebhookSubscription do
+  @moduledoc """
+  What the network delivers to the FoPost webhook for one account. `:subscribed` is false
+  when the subscription lapsed or a required field is missing.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:subscribed, :fields, :missing_fields, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      subscribed: fields["subscribed"] || false,
+      fields: fields["fields"] || [],
+      missing_fields: fields["missing_fields"] || [],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
 defmodule FoPost.DiscordChannel do
   @moduledoc """
   A Discord text channel the bot can post to. `:type` is Discord's channel type — 0 text,
