@@ -8,9 +8,45 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Broadcasts` — one message into every conversation the workspace already
+  has with a segment of its contacts: `list/2`, `get/2`, `create/2`, `update/3`,
+  `delete/2`, `send/2`, `cancel/2`, `recipients/3`. Reading needs `inbox`; `send/2`
+  and `cancel/2` also need `publish`.
+- `FoPost.Sequences` — a series of messages on a delay: `list/2`, `get/2`,
+  `create/2`, `update/3`, `delete/2`, `enroll/3`, `unenroll/3`, `enrollments/3`.
+  `enroll/3` and `unenroll/3` need `publish`.
+- Both honour each network's messaging window server-side. Messenger and Instagram
+  take a business-initiated message only within 24 hours of the contact's last one,
+  so recipients outside it come back skipped with `"window_closed"` and nothing is
+  attempted — the number sent is often lower than the audience.
+- `FoPost.Contacts` — the people behind the inbox: `list/2`, `get/2`, `create/2`,
+  `update/3`, `delete/2`, `conversations/3` and `import/3`, plus `list_fields/2`,
+  `create_field/3`, `update_field/3` and `delete_field/2` for the columns a workspace
+  keeps about a person (scope `inbox`).
+- `FoPost.Contacts.conversation_analytics/2` — inbox volume and reply time per thread
+  (scope `analytics`). Each row's `:key` is an opaque handle for the thread rather than
+  the id or handle the inbox groups on.
+- Meta messaging settings on `FoPost.Accounts`: `ice_breakers/2`, `set_ice_breakers/3`, and
+  `delete_ice_breakers/2` (Facebook Pages and Instagram), plus `persistent_menu/2`,
+  `set_persistent_menu/3`, `delete_persistent_menu/2`, `greeting/2`, `set_greeting/3`, and
+  `delete_greeting/2` (Facebook Pages). A network without a field answers 400.
+- `FoPost.Accounts.webhook_subscription/2` reports whether the network is still delivering
+  events for an account, and `resubscribe_webhook/2` puts a lapsed subscription back.
+- `FoPost.Inbox.handover/4` passes a Messenger thread to another Meta app, or takes it back
+  when no `:app_id` is given (scope `inbox`, plus `publish`).
 - `FoPost.Accounts.slack_channels/2`, `slack_members/2`, `slack_identity/2`, and
   `update_slack_identity/3` read a Slack account's channels and workspace members and set
   the name and icon it posts under; a `nil` option clears a field (scope `accounts`).
+- The Discord bot surface on `FoPost.Accounts`: `discord_channels/2`,
+  `switch_discord_channel/3`, `discord_identity/2`, `update_discord_identity/3`,
+  `discord_pins/2`, `delete_discord_message/3`, `pin_discord_message/3`,
+  `unpin_discord_message/3`, `crosspost_discord_message/3`, `create_discord_thread/4`,
+  `send_discord_direct_message/4`, `discord_events/2`, `discord_event/3`,
+  `create_discord_event/3`, `update_discord_event/4`, `delete_discord_event/3`,
+  `discord_members/3`, `discord_member/3`, `discord_roles/2`, `create_discord_role/3`,
+  `update_discord_role/4`, `delete_discord_role/3`, `add_discord_member_role/4` and
+  `remove_discord_member_role/4` (scope `accounts`, plus `publish` for anything that
+  posts). A connection made with a webhook answers `409 webhook_connection`.
 
 ## [0.3.0] - 2026-09-19
 
