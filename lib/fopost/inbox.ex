@@ -1,6 +1,6 @@
 defmodule FoPost.Inbox do
   @moduledoc """
-  Comments, mentions, and direct messages on connected accounts.
+  Comments, mentions, reviews, and direct messages on connected accounts.
 
   Every function needs the `inbox` scope. Lists answer a `FoPost.Page` whose
   `meta.current_page`, `meta.per_page`, and `meta.total` are set.
@@ -67,7 +67,7 @@ defmodule FoPost.Inbox do
   @doc """
   One page of items, newest first.
 
-  Filters: `:workspace_id`, `:type` (`comment`, `mention`, `dm`), `:state` (`unread`,
+  Filters: `:workspace_id`, `:type` (`comment`, `mention`, `review`, `dm`), `:state` (`unread`,
   `read`, `resolved`, `snoozed`), `:platform`, `:account_id`, `:post_id`,
   `:post_external_id`, `:conversation_id`, `:direction` (`inbound`, `outbound`), `:q`,
   `:sort` (`newest`, `oldest`, `unanswered`). Paging: `:page`, `:per_page`.
@@ -82,10 +82,10 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
-  One page of threads: one row per post with comments, or with mentions when `:kind` is
-  `"mentions"`.
+  One page of threads: one row per post with comments, with mentions when `:kind` is
+  `"mentions"`, or one row per review when it is `"reviews"`.
 
-  Filters: `:workspace_id`, `:kind` (`comments`, `mentions`), `:platform`, `:account_id`,
+  Filters: `:workspace_id`, `:kind` (`comments`, `mentions`, `reviews`), `:platform`, `:account_id`,
   `:state`, `:q`, `:sort`. Paging: `:page`, `:per_page`.
   """
   @spec threads(Client.t(), keyword()) :: {:ok, Page.t()} | {:error, FoPost.Error.t()}
