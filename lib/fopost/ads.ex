@@ -217,19 +217,39 @@ defmodule FoPost.Ads do
   end
 
   @doc """
-  The Meta login URL; finish it in a browser. Required: `:workspace_id`. Optional:
-  `:method` (`business`, `user`), `:return_to`.
+  The ad networks this deployment knows, with what each one supports.
   """
-  @spec authorize_meta(Client.t(), keyword()) :: {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def authorize_meta(client, opts) do
+  @spec providers(Client.t(), keyword()) ::
+          {:ok, [FoPost.AdProvider.t()]} | {:error, FoPost.Error.t()}
+  def providers(client, opts \\ []) do
+    with {:ok, data} <- get(client, "/ads/providers", opts) do
+      {:ok, Model.list(FoPost.AdProvider, data)}
+    end
+  end
+
+  @doc """
+  The network's login URL; finish it in a browser. Required: `:workspace_id`. Optional:
+  `:method` (one of the network's own connect methods), `:return_to`.
+  """
+  @spec authorize(Client.t(), String.t(), keyword()) ::
+          {:ok, String.t()} | {:error, FoPost.Error.t()}
+  def authorize(client, provider, opts) do
     body =
       Model.take_body(opts, [{:workspace_id, "workspaceId"}, :method, {:return_to, "returnTo"}])
 
-    with {:ok, data} <-
-           Client.request(client, :post, "/ads/connections/meta/authorize", json: body) do
+    path = "/ads/connections/" <> encode(provider) <> "/authorize"
+
+    with {:ok, data} <- Client.request(client, :post, path, json: body) do
       {:ok, url(data)}
     end
   end
+
+  @doc """
+  The Meta login URL.
+  """
+  @deprecated "Use authorize/3 with the provider id \"meta\"."
+  @spec authorize_meta(Client.t(), keyword()) :: {:ok, String.t()} | {:error, FoPost.Error.t()}
+  def authorize_meta(client, opts), do: authorize(client, "meta", opts)
 
   @doc """
   Disconnects an ads login. Every ad record created through it is deleted too.
@@ -725,6 +745,232 @@ defmodule FoPost.Ads do
   end
 
   @doc """
+  Adds companies to a company-list audience; answers how many the network took.
+  The rows travel with the request and are never stored.
+  Required: `:workspace_id`, `:connection_id`, `:companies`.
+  """
+  @spec add_audience_companies(Client.t(), String.t(), keyword()) ::
+          {:ok, non_neg_integer()} | {:error, FoPost.Error.t()}
+  def add_audience_companies(client, id, opts) do
+    path = object_path("audiences", id) <> "/companies"
+    body = Model.take_body(opts, [:companies])
+
+    with {:ok, data} <-
+           Client.request(client, :post, path, params: meta_params(opts), json: body) do
+      {:ok, added(data)}
+    end
+  end
+
+  @doc """
+  What the auction currently costs for that audience.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:goal`, `:targeting`.
+  Optional: `:placements`, `:bid_type` (`CPC`, `CPM`, `CPV`).
+  """
+  @spec bid_pricing(Client.t(), keyword()) ::
+          {:ok, FoPost.BidPricing.t()} | {:error, FoPost.Error.t()}
+  def bid_pricing(client, opts) do
+    with {:ok, data} <-
+           Client.request(client, :post, "/ads/linkedin/bid-pricing",
+             json: forecast_body(opts, [{:bid_type, "bidType"}])
+           ) do
+      {:ok, FoPost.BidPricing.from_map(data)}
+    end
+  end
+
+  @doc """
+  What that audience would deliver at that budget.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:goal`, `:targeting`.
+  Optional: `:placements`, `:budget_minor`.
+  """
+  @spec supply_forecast(Client.t(), keyword()) ::
+          {:ok, FoPost.SupplyForecast.t()} | {:error, FoPost.Error.t()}
+  def supply_forecast(client, opts) do
+    with {:ok, data} <-
+           Client.request(client, :post, "/ads/linkedin/supply-forecast",
+             json: forecast_body(opts, [{:budget_minor, "budgetMinor"}])
+           ) do
+      {:ok, FoPost.SupplyForecast.from_map(data)}
+    end
+  end
+
+  @doc """
+  The conversion rules on one ad account.
+  Required: `:connection_id`, `:ad_account_id`. Optional: `:workspace_id`.
+  """
+  @spec conversion_rules(Client.t(), keyword()) ::
+          {:ok, [FoPost.ConversionRule.t()]} | {:error, FoPost.Error.t()}
+  def conversion_rules(client, opts) do
+    params = Model.take_params(opts, [:workspace_id, :connection_id, :ad_account_id])
+
+    with {:ok, data} <-
+           Client.request(client, :get, "/ads/linkedin/conversion-rules", params: params) do
+      {:ok, Model.list(FoPost.ConversionRule, data)}
+    end
+  end
+
+  @doc """
+  Creates a conversion rule; answers its id.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:name`, `:type`
+  (`purchase`, `lead`, `sign_up`, `add_to_cart`, `download`, `install`,
+  `key_page_view`, `other`), `:attribution` (`last_touch`, `each_campaign`).
+  Optional: `:post_click_window_days`, `:view_through_window_days`, `:value_minor`,
+  `:currency`.
+  """
+  @spec create_conversion_rule(Client.t(), keyword()) ::
+          {:ok, String.t()} | {:error, FoPost.Error.t()}
+  def create_conversion_rule(client, opts) do
+    body =
+      Model.take_body(opts, [
+        {:workspace_id, "workspaceId"},
+        {:connection_id, "connectionId"},
+        {:ad_account_id, "adAccountId"},
+        :name,
+        :type,
+        :attribution,
+        {:post_click_window_days, "postClickWindowDays"},
+        {:view_through_window_days, "viewThroughWindowDays"},
+        {:value_minor, "valueMinor"},
+        :currency
+      ])
+
+    with {:ok, data} <-
+           Client.request(client, :post, "/ads/linkedin/conversion-rules", json: body) do
+      {:ok, id(data)}
+    end
+  end
+
+  @doc """
+  One rule, with the ad sets it is attached to. Required: `:connection_id`.
+  """
+  @spec conversion_rule(Client.t(), String.t(), keyword()) ::
+          {:ok, FoPost.ConversionRule.t()} | {:error, FoPost.Error.t()}
+  def conversion_rule(client, id, opts) do
+    with {:ok, data} <- get_object(client, conversion_rule_path(id), opts) do
+      {:ok, FoPost.ConversionRule.from_map(data)}
+    end
+  end
+
+  @doc """
+  Changes a rule. Required: `:workspace_id`, `:connection_id`. Optional: `:name`,
+  `:type`, `:attribution`, `:post_click_window_days`, `:view_through_window_days`,
+  `:value_minor`, `:currency`, `:enabled`.
+  """
+  @spec update_conversion_rule(Client.t(), String.t(), keyword()) ::
+          {:ok, FoPost.ConversionRule.t()} | {:error, FoPost.Error.t()}
+  def update_conversion_rule(client, id, opts) do
+    body =
+      Model.take_body(opts, [
+        :name,
+        :type,
+        :attribution,
+        {:post_click_window_days, "postClickWindowDays"},
+        {:view_through_window_days, "viewThroughWindowDays"},
+        {:value_minor, "valueMinor"},
+        :currency,
+        :enabled
+      ])
+
+    with {:ok, data} <-
+           Client.request(client, :patch, conversion_rule_path(id),
+             params: meta_params(opts),
+             json: body
+           ) do
+      {:ok, FoPost.ConversionRule.from_map(data)}
+    end
+  end
+
+  @doc """
+  Turns a rule off; the network keeps the history.
+  Required: `:workspace_id`, `:connection_id`.
+  """
+  @spec delete_conversion_rule(Client.t(), String.t(), keyword()) ::
+          :ok | {:error, FoPost.Error.t()}
+  def delete_conversion_rule(client, id, opts) do
+    with {:ok, _data} <-
+           Client.request(client, :delete, conversion_rule_path(id), params: meta_params(opts)) do
+      :ok
+    end
+  end
+
+  @doc """
+  Attaches a rule to an ad set on the same connection.
+  Required: `:workspace_id`, `:connection_id`, `:campaign_id`.
+  """
+  @spec attach_conversion_rule(Client.t(), String.t(), keyword()) ::
+          {:ok, FoPost.ConversionRule.t()} | {:error, FoPost.Error.t()}
+  def attach_conversion_rule(client, id, opts), do: association(client, :post, id, opts)
+
+  @doc """
+  Detaches a rule from an ad set.
+  Required: `:workspace_id`, `:connection_id`, `:campaign_id`.
+  """
+  @spec detach_conversion_rule(Client.t(), String.t(), keyword()) ::
+          {:ok, FoPost.ConversionRule.t()} | {:error, FoPost.Error.t()}
+  def detach_conversion_rule(client, id, opts), do: association(client, :delete, id, opts)
+
+  @doc """
+  What a rule recorded between two `YYYY-MM-DD` days, inclusive.
+  Required: `:connection_id`, `:since`, `:until`. Optional: `:workspace_id`.
+  """
+  @spec conversion_metrics(Client.t(), String.t(), keyword()) ::
+          {:ok, FoPost.ConversionMetrics.t()} | {:error, FoPost.Error.t()}
+  def conversion_metrics(client, id, opts) do
+    params = Model.take_params(opts, [:workspace_id, :connection_id, :since, :until])
+
+    with {:ok, data} <-
+           Client.request(client, :get, conversion_rule_path(id) <> "/metrics", params: params) do
+      {:ok, FoPost.ConversionMetrics.from_map(data)}
+    end
+  end
+
+  @doc """
+  Sends conversions back to the network; answers how many it took. Each event needs
+  a `happenedAt` in epoch milliseconds and an `email` or a `clickId`; the address is
+  hashed inside the API and nothing about an event is stored.
+  Required: `:workspace_id`, `:connection_id`, `:events`.
+  """
+  @spec send_conversion_events(Client.t(), String.t(), keyword()) ::
+          {:ok, non_neg_integer()} | {:error, FoPost.Error.t()}
+  def send_conversion_events(client, id, opts) do
+    body = Model.take_body(opts, [:events])
+
+    with {:ok, data} <-
+           Client.request(client, :post, conversion_rule_path(id) <> "/events",
+             params: meta_params(opts),
+             json: body
+           ) do
+      {:ok, accepted(data)}
+    end
+  end
+
+  @doc """
+  The network's own public ad library, not the connection's ads.
+  Required: `:connection_id`. Optional: `:workspace_id`, `:keyword`, `:advertiser`,
+  `:countries` (a list of ISO 3166-1 alpha-2 codes), `:since`, `:until`, `:cursor`.
+  """
+  @spec ad_library(Client.t(), keyword()) ::
+          {:ok, FoPost.AdLibraryPage.t()} | {:error, FoPost.Error.t()}
+  def ad_library(client, opts) do
+    opts = Keyword.update(opts, :countries, nil, &join_countries/1)
+
+    params =
+      Model.take_params(opts, [
+        :workspace_id,
+        :connection_id,
+        :keyword,
+        :advertiser,
+        :countries,
+        :since,
+        :until,
+        :cursor
+      ])
+
+    with {:ok, data} <- Client.request(client, :get, "/ads/ad-library", params: params) do
+      {:ok, FoPost.AdLibraryPage.from_map(data)}
+    end
+  end
+
+  @doc """
   Estimates the audience size for a targeting spec.
   Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:page_id`, `:targeting`.
   """
@@ -868,8 +1114,62 @@ defmodule FoPost.Ads do
   @doc "Same as `sources/2`, but raises `FoPost.Error`."
   def sources!(client, opts \\ []), do: Result.unwrap!(sources(client, opts))
 
+  @doc "Same as `providers/2`, but raises `FoPost.Error`."
+  def providers!(client, opts \\ []), do: Result.unwrap!(providers(client, opts))
+
+  @doc "Same as `authorize/3`, but raises `FoPost.Error`."
+  def authorize!(client, provider, opts), do: Result.unwrap!(authorize(client, provider, opts))
+
   @doc "Same as `authorize_meta/2`, but raises `FoPost.Error`."
+  @deprecated "Use authorize!/3 with the provider id \"meta\"."
   def authorize_meta!(client, opts), do: Result.unwrap!(authorize_meta(client, opts))
+
+  @doc "Same as `add_audience_companies/3`, but raises `FoPost.Error`."
+  def add_audience_companies!(client, id, opts),
+    do: Result.unwrap!(add_audience_companies(client, id, opts))
+
+  @doc "Same as `bid_pricing/2`, but raises `FoPost.Error`."
+  def bid_pricing!(client, opts), do: Result.unwrap!(bid_pricing(client, opts))
+
+  @doc "Same as `supply_forecast/2`, but raises `FoPost.Error`."
+  def supply_forecast!(client, opts), do: Result.unwrap!(supply_forecast(client, opts))
+
+  @doc "Same as `conversion_rules/2`, but raises `FoPost.Error`."
+  def conversion_rules!(client, opts), do: Result.unwrap!(conversion_rules(client, opts))
+
+  @doc "Same as `create_conversion_rule/2`, but raises `FoPost.Error`."
+  def create_conversion_rule!(client, opts),
+    do: Result.unwrap!(create_conversion_rule(client, opts))
+
+  @doc "Same as `conversion_rule/3`, but raises `FoPost.Error`."
+  def conversion_rule!(client, id, opts), do: Result.unwrap!(conversion_rule(client, id, opts))
+
+  @doc "Same as `update_conversion_rule/3`, but raises `FoPost.Error`."
+  def update_conversion_rule!(client, id, opts),
+    do: Result.unwrap!(update_conversion_rule(client, id, opts))
+
+  @doc "Same as `delete_conversion_rule/3`, but raises `FoPost.Error`."
+  def delete_conversion_rule!(client, id, opts),
+    do: Result.unwrap!(delete_conversion_rule(client, id, opts))
+
+  @doc "Same as `attach_conversion_rule/3`, but raises `FoPost.Error`."
+  def attach_conversion_rule!(client, id, opts),
+    do: Result.unwrap!(attach_conversion_rule(client, id, opts))
+
+  @doc "Same as `detach_conversion_rule/3`, but raises `FoPost.Error`."
+  def detach_conversion_rule!(client, id, opts),
+    do: Result.unwrap!(detach_conversion_rule(client, id, opts))
+
+  @doc "Same as `conversion_metrics/3`, but raises `FoPost.Error`."
+  def conversion_metrics!(client, id, opts),
+    do: Result.unwrap!(conversion_metrics(client, id, opts))
+
+  @doc "Same as `send_conversion_events/3`, but raises `FoPost.Error`."
+  def send_conversion_events!(client, id, opts),
+    do: Result.unwrap!(send_conversion_events(client, id, opts))
+
+  @doc "Same as `ad_library/2`, but raises `FoPost.Error`."
+  def ad_library!(client, opts), do: Result.unwrap!(ad_library(client, opts))
 
   @doc "Same as `delete_connection/3`, but raises `FoPost.Error`."
   def delete_connection!(client, id, opts),
@@ -1023,6 +1323,38 @@ defmodule FoPost.Ads do
 
   defp meta_params(opts), do: Model.take_params(opts, [:workspace_id, :connection_id])
 
+  defp conversion_rule_path(id), do: "/ads/linkedin/conversion-rules/" <> encode(id)
+
+  defp forecast_body(opts, extra) do
+    Model.take_body(
+      opts,
+      [
+        {:workspace_id, "workspaceId"},
+        {:connection_id, "connectionId"},
+        {:ad_account_id, "adAccountId"},
+        :goal,
+        :targeting,
+        :placements
+      ] ++ extra
+    )
+  end
+
+  defp association(client, method, id, opts) do
+    body = Model.take_body(opts, [{:campaign_id, "campaignId"}])
+
+    with {:ok, data} <-
+           Client.request(client, method, conversion_rule_path(id) <> "/associations",
+             params: meta_params(opts),
+             json: body
+           ) do
+      {:ok, FoPost.ConversionRule.from_map(data)}
+    end
+  end
+
+  defp join_countries(nil), do: nil
+  defp join_countries(codes) when is_list(codes), do: Enum.join(codes, ",")
+  defp join_countries(codes), do: codes
+
   defp get_object(client, path, opts) do
     Client.request(client, :get, path, params: meta_params(opts))
   end
@@ -1054,6 +1386,9 @@ defmodule FoPost.Ads do
 
   defp added(%{"added" => added}) when is_integer(added), do: added
   defp added(_data), do: 0
+
+  defp accepted(%{"accepted" => accepted}) when is_integer(accepted), do: accepted
+  defp accepted(_data), do: 0
 
   defp object_path(kind, id), do: "/ads/" <> kind <> "/" <> encode(id)
 

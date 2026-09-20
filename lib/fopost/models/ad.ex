@@ -1093,3 +1093,282 @@ defmodule FoPost.LeadPageSubscription do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.AdTrackingMacro do
+  @moduledoc """
+  A token a network expands in a link's tracking parameters at delivery time.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:token, :description, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      token: fields["token"],
+      description: fields["description"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdProvider do
+  @moduledoc """
+  An ad network from the API's registry. `:configured` false cannot be connected yet.
+
+  `:capabilities` says what the network supports — campaigns, audiences, conversions,
+  forecasts, adLibrary and so on. `:targeting_facets` is what `FoPost.Ads.search_targeting/2`
+  accepts here.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :id,
+    :name,
+    :logo,
+    :configured,
+    :raw,
+    connect_methods: [],
+    capabilities: %{},
+    targeting_facets: [],
+    tracking_macros: []
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      logo: fields["logo"],
+      configured: fields["configured"],
+      connect_methods: fields["connect_methods"] || [],
+      capabilities: fields["capabilities"] || %{},
+      targeting_facets: fields["targeting_facets"] || [],
+      tracking_macros: Model.list(FoPost.AdTrackingMacro, fields["tracking_macros"]),
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.BidPricing do
+  @moduledoc """
+  What the auction costs, in minor units of the ad account currency.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :currency,
+    :suggested_bid_minor,
+    :min_bid_minor,
+    :max_bid_minor,
+    :daily_budget_floor_minor,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      currency: fields["currency"],
+      suggested_bid_minor: fields["suggested_bid_minor"],
+      min_bid_minor: fields["min_bid_minor"],
+      max_bid_minor: fields["max_bid_minor"],
+      daily_budget_floor_minor: fields["daily_budget_floor_minor"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.SupplyForecast do
+  @moduledoc """
+  What an audience would deliver at a budget, over the network's own window.
+  `:ready` is false while the network has no answer for that audience.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:currency, :impressions, :clicks, :spend_minor, :window_days, :ready, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      currency: fields["currency"],
+      impressions: fields["impressions"],
+      clicks: fields["clicks"],
+      spend_minor: fields["spend_minor"],
+      window_days: fields["window_days"],
+      ready: fields["ready"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.ConversionRule do
+  @moduledoc """
+  How the network attributes a sale or a sign-up back to an ad set.
+  `:campaign_ids` are the ad sets the rule is attached to.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :id,
+    :name,
+    :type,
+    :attribution,
+    :post_click_window_days,
+    :view_through_window_days,
+    :value_minor,
+    :currency,
+    :enabled,
+    :created_at,
+    :raw,
+    campaign_ids: []
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      type: fields["type"],
+      attribution: fields["attribution"],
+      post_click_window_days: fields["post_click_window_days"],
+      view_through_window_days: fields["view_through_window_days"],
+      value_minor: fields["value_minor"],
+      currency: fields["currency"],
+      enabled: fields["enabled"],
+      created_at: fields["created_at"],
+      campaign_ids: fields["campaign_ids"] || [],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.ConversionMetrics do
+  @moduledoc """
+  What a conversion rule recorded over a date range.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :conversions,
+    :post_click_conversions,
+    :view_through_conversions,
+    :value_minor,
+    :cost_per_conversion_minor,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      conversions: fields["conversions"],
+      post_click_conversions: fields["post_click_conversions"],
+      view_through_conversions: fields["view_through_conversions"],
+      value_minor: fields["value_minor"],
+      cost_per_conversion_minor: fields["cost_per_conversion_minor"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdLibraryAd do
+  @moduledoc """
+  A public ad from the network's own library, never a connection's own data.
+  `:payer` is the paying entity, where the network discloses one.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :id,
+    :advertiser_name,
+    :advertiser_url,
+    :headline,
+    :body,
+    :type,
+    :thumbnail_url,
+    :first_impression_at,
+    :last_impression_at,
+    :details_url,
+    :payer,
+    :impressions_range,
+    :raw,
+    countries: []
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      advertiser_name: fields["advertiser_name"],
+      advertiser_url: fields["advertiser_url"],
+      headline: fields["headline"],
+      body: fields["body"],
+      type: fields["type"],
+      thumbnail_url: fields["thumbnail_url"],
+      first_impression_at: fields["first_impression_at"],
+      last_impression_at: fields["last_impression_at"],
+      countries: fields["countries"] || [],
+      details_url: fields["details_url"],
+      payer: fields["payer"],
+      impressions_range: fields["impressions_range"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdLibraryPage do
+  @moduledoc """
+  One page of ad-library results; pass `:next_cursor` back as the cursor.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:next_cursor, :raw, ads: []]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      ads: Model.list(FoPost.AdLibraryAd, fields["ads"]),
+      next_cursor: fields["next_cursor"],
+      raw: data
+    }
+  end
+end
