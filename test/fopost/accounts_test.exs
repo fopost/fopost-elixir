@@ -378,4 +378,59 @@ defmodule FoPost.AccountsTest do
     assert {:error, %FoPost.Error{status: 409, code: "webhook_connection"}} =
              FoPost.Accounts.discord_channels(client, "acc_1")
   end
+
+  test "pinterest board creation sends only what was given", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/accounts/acc_1/pinterest/boards", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw) == %{"name" => "Recipes"}
+      TestSupport.json(conn, 201, %{"data" => %{"id" => "b1", "name" => "Recipes"}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %FoPost.PinterestBoard{id: "b1"}} =
+             FoPost.Accounts.create_pinterest_board(client, "acc_1", name: "Recipes")
+  end
+
+  test "tiktok music search passes the query through", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/accounts/acc_1/tiktok/music", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params["q"] == "sunrise"
+      assert conn.query_params["limit"] == "5"
+
+      TestSupport.json(conn, 200, %{
+        "data" => [%{"id" => "m1", "title" => "Sunrise", "author" => "Kite"}]
+      })
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, [%FoPost.TikTokMusic{id: "m1", author: "Kite"}]} =
+             FoPost.Accounts.tiktok_music(client, "acc_1", "sunrise", limit: 5)
+  end
+
+  test "tiktok video lookup returns the address a repurpose run reads", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/accounts/acc_1/tiktok/video-download", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert Jason.decode!(raw)["url"] =~ "tiktok.com"
+
+      TestSupport.json(conn, 200, %{
+        "data" => %{
+          "video_id" => "7300000000000000000",
+          "download_url" => "https://www.tiktok.com/@a/video/7300000000000000000"
+        }
+      })
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %FoPost.TikTokVideoSource{video_id: "7300000000000000000", download_url: url}} =
+             FoPost.Accounts.tiktok_video_lookup(
+               client,
+               "acc_1",
+               "https://www.tiktok.com/@a/video/7300000000000000000"
+             )
+
+    assert url != nil
+  end
 end

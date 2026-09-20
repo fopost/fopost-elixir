@@ -54,6 +54,16 @@ All notable changes to this project are documented in this file. The format foll
 - `FoPost.DiscordChannel` carries `:can_post`, false when a channel permission in
   Discord shuts the bot out; `switch_discord_channel/3` answers
   `409 channel_not_writable` for one.
+- Per-network extras on `FoPost.Accounts`, all under the `accounts` scope: Pinterest
+  boards (`pinterest_boards/2`, `create_pinterest_board/3`), YouTube playlists and
+  captions (`youtube_playlists/2`, `create_youtube_playlist/3`,
+  `set_default_youtube_playlist/3`, `youtube_captions/3`, `upload_youtube_captions/4`,
+  `youtube_transcript/3`), Bluesky post languages (`bluesky_languages/2`,
+  `set_bluesky_languages/3`), TikTok creator info, music and place search and video
+  lookup (`tiktok_creator_info/2`, `tiktok_music/4`, `tiktok_locations/4`,
+  `tiktok_video_lookup/3`), Instagram audio, publishing limit and stories
+  (`instagram_audio/3`, `instagram_publishing_limit/2`, `instagram_stories/3`,
+  `instagram_story_insights/3`), and LinkedIn mentions (`linkedin_mentions/3`).
 
 ## [0.3.0] - 2026-09-19
 
