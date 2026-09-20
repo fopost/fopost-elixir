@@ -234,15 +234,67 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 `FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.AccountGroups` ·
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
-`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` ·
-`FoPost.Activity`
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
+`FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
+`FoPost.Validate` · `FoPost.Activity`
 
-## Inbox and ads
+## Inbox, contacts, broadcasts and ads
 
 `FoPost.Inbox` reads comments, mentions, and direct messages on connected accounts and
-replies as the account (scope `inbox`). `FoPost.Ads` boosts posts, creates ads, and
-manages campaigns, ad sets, creatives, audiences, insights, lead forms, and the leads
-feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
+replies as the account (scope `inbox`). `FoPost.Contacts` is the people behind that
+inbox: one row per human however many handles they write from, the custom fields the
+workspace keeps about them, and a CSV import (scope `inbox`, except
+`conversation_analytics/2`, which answers counts per thread under `analytics`).
+
+`FoPost.Broadcasts` sends one message into every conversation the workspace already has
+with a segment of those contacts, and `FoPost.Sequences` walks a series of them on a
+delay. Neither opens a cold DM. Nothing is sent into a closed messaging window: Messenger
+and Instagram take a business-initiated message only within 24 hours of the contact's last
+one, so recipients outside it come back skipped with `"window_closed"` rather than
+attempted, and the number sent is often lower than the audience. Telegram, Slack, Bluesky
+and Reddit have no window. Both read under `inbox`; `send/2`, `cancel/2`, `enroll/3` and
+`unenroll/3` need `publish` as well.
+
+```elixir
+{:ok, broadcast} =
+  FoPost.Broadcasts.create(client,
+    workspace_id: workspace_id,
+    account_id: account_id,
+    name: "September check-in",
+    text: "New colours just landed. Want a look?",
+    audience: %{"platforms" => ["instagram"]}
+  )
+
+# `recipients` is how many contacts matched, not how many will be messaged.
+{:ok, sent} = FoPost.Broadcasts.send(client, broadcast.id)
+
+# Who was skipped, and why.
+{:ok, page} = FoPost.Broadcasts.recipients(client, broadcast.id, status: "skipped")
+Enum.each(page.data, &IO.puts("#{&1.display_name} — #{&1.skip_reason}"))
+
+{:ok, sequence} =
+  FoPost.Sequences.create(client,
+    workspace_id: workspace_id,
+    account_id: account_id,
+    name: "Welcome",
+    steps: [
+      %{"delay_hours" => 0, "text" => "Thanks for the follow"},
+      %{"delay_hours" => 48, "text" => "Here is what people usually ask us first."}
+    ]
+  )
+
+{:ok, _} = FoPost.Sequences.enroll(client, sequence.id, contact_ids: [contact_id])
+{:ok, _} = FoPost.Sequences.unenroll(client, sequence.id, [contact_id])
+```
+
+`FoPost.Knowledge` holds what the workspace has
+told FoPost about itself — FAQs, notes, your own pages and plain-text files — and
+`search/3` returns the passages that ground a drafted reply in your own answers rather
+than an invented one (same `inbox` scope).
+`FoPost.Ads` boosts posts, creates ads, and
+manages campaigns, ad sets, creatives, product catalogs, audiences, reach-and-frequency
+predictions, the public ad archive, ad account settings, insights, lead forms, and the
+leads feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
 `bulk_set_status/2`, and the campaign, ad set, and network ad writes spend money and also
 need `publish`). A boost, campaign, ad set, or ad starts paused unless `paused: false`.
 Campaign-tree objects are addressed by Meta id and read live, so those calls take
