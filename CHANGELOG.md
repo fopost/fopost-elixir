@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.InboxItem` carries `:moderation_status` (the platform's own state for
+  a comment: `"published"`, `"held"`, `"spam"`, `"rejected"`), and
+  `FoPost.InboxAccount` carries `:reconnect_required` for an account connected
+  before the inbox asked for a permission it needs.
 - `FoPost.Accounts.slack_channels/2`, `slack_members/2`, `slack_identity/2`, and
   `update_slack_identity/3` read a Slack account's channels and workspace members and set
   the name and icon it posts under; a `nil` option clears a field (scope `accounts`).

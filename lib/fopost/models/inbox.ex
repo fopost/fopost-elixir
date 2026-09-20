@@ -151,6 +151,7 @@ defmodule FoPost.InboxItem do
     :can_send_media,
     :can_quick_reply,
     :can_private_reply,
+    :moderation_status,
     :post,
     :post_context,
     :account,
@@ -199,6 +200,7 @@ defmodule FoPost.InboxItem do
       can_send_media: fields["can_send_media"],
       can_quick_reply: fields["can_quick_reply"],
       can_private_reply: fields["can_private_reply"],
+      moderation_status: fields["moderation_status"],
       post: Model.normalize(fields["post"]),
       post_context: Model.build(InboxPostContext, fields["post_context"]),
       account: Model.build(InboxAccountRef, fields["account"]),
@@ -307,7 +309,8 @@ defmodule FoPost.InboxAccount do
   @moduledoc """
   A connected account and whether its comments (`:inbox_supported`) and direct messages
   (`:dm_supported`) can be read. The `*_pending_reason` fields say why not.
-  `:can_start_conversation` says whether a new DM can be opened from it.
+  `:can_start_conversation` says whether a new DM can be opened from it, and
+  `:reconnect_required` means the grant predates a permission the inbox needs.
   """
 
   alias FoPost.Model
@@ -324,6 +327,7 @@ defmodule FoPost.InboxAccount do
     :dm_supported,
     :dm_pending_reason,
     :can_start_conversation,
+    :reconnect_required,
     :raw
   ]
 
@@ -345,6 +349,7 @@ defmodule FoPost.InboxAccount do
       dm_supported: fields["dm_supported"],
       dm_pending_reason: fields["dm_pending_reason"],
       can_start_conversation: fields["can_start_conversation"],
+      reconnect_required: fields["reconnect_required"],
       raw: data
     }
   end
