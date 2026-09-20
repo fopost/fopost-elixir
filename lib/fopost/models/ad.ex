@@ -1093,3 +1093,148 @@ defmodule FoPost.LeadPageSubscription do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.AdBusinessCenter do
+  @moduledoc """
+  A Business Center, or the network's equivalent grouping of ad accounts.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :name, :role, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      role: fields["role"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdIdentity do
+  @moduledoc """
+  The account an ad runs as. Meta calls it a Page, TikTok an identity; an
+  identity id is what every route calls a `page_id`. `type` is the network's
+  own identity kind, e.g. `CUSTOMIZED_USER`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :type, :name, :avatar_url, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      type: fields["type"],
+      name: fields["name"],
+      avatar_url: fields["avatar_url"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.SparkPost do
+  @moduledoc """
+  A post already live on the network, offered as the source of a Spark ad.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :identity_id, :caption, :thumbnail_url, :created_at, :views, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      identity_id: fields["identity_id"],
+      caption: fields["caption"],
+      thumbnail_url: fields["thumbnail_url"],
+      created_at: fields["created_at"],
+      views: fields["views"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdComment do
+  @moduledoc """
+  A comment on an ad, read live from the network and never stored.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :id,
+    :ad_id,
+    :text,
+    :author_name,
+    :author_avatar_url,
+    :created_at,
+    :likes,
+    :reply_count,
+    :hidden,
+    :parent_id,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      ad_id: fields["ad_id"],
+      text: fields["text"] || "",
+      author_name: fields["author_name"],
+      author_avatar_url: fields["author_avatar_url"],
+      created_at: fields["created_at"],
+      likes: fields["likes"] || 0,
+      reply_count: fields["reply_count"] || 0,
+      hidden: fields["hidden"] || false,
+      parent_id: fields["parent_id"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdCommentsPage do
+  @moduledoc """
+  One page of an ad's comments; pass `next_cursor` back as `:after`.
+  """
+
+  alias FoPost.AdComment
+  alias FoPost.Model
+
+  defstruct comments: [], next_cursor: nil, raw: nil
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      comments: Model.list(AdComment, fields["comments"] || []),
+      next_cursor: fields["next_cursor"],
+      raw: data
+    }
+  end
+end

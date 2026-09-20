@@ -31,9 +31,12 @@ defmodule FoPost.Ads do
 
   alias FoPost.Ad
   alias FoPost.AdAccountTree
+  alias FoPost.AdBusinessCenter
   alias FoPost.AdCampaign
+  alias FoPost.AdCommentsPage
   alias FoPost.AdConnection
   alias FoPost.AdCreative
+  alias FoPost.AdIdentity
   alias FoPost.AdInsightsReport
   alias FoPost.AdSet
   alias FoPost.AdSource
@@ -55,6 +58,7 @@ defmodule FoPost.Ads do
   alias FoPost.NetworkAd
   alias FoPost.ReachEstimate
   alias FoPost.Result
+  alias FoPost.SparkPost
   alias FoPost.TargetingOption
 
   @spend_fields [
@@ -77,7 +81,8 @@ defmodule FoPost.Ads do
                      :headline,
                      {:destination_url, "destinationUrl"},
                      {:media_url, "mediaUrl"},
-                     {:url_tags, "urlTags"}
+                     {:url_tags, "urlTags"},
+                     {:spark_post_id, "sparkPostId"}
                    ]
 
   @campaign_fields [
@@ -86,7 +91,24 @@ defmodule FoPost.Ads do
     {:ad_account_id, "adAccountId"},
     :name,
     :goal,
-    :paused
+    :paused,
+    {:smart_plus, "smartPlus"}
+  ]
+
+  @comment_fields [
+    {:workspace_id, "workspaceId"},
+    {:connection_id, "connectionId"},
+    {:ad_id, "adId"},
+    :text,
+    :hidden
+  ]
+
+  @conversion_fields [
+    {:workspace_id, "workspaceId"},
+    {:connection_id, "connectionId"},
+    {:ad_account_id, "adAccountId"},
+    {:pixel_id, "pixelId"},
+    :events
   ]
 
   @ad_set_fields [
@@ -364,6 +386,125 @@ defmodule FoPost.Ads do
 
     with {:ok, data} <- Client.request(client, :get, "/ads/targeting/search", params: params) do
       {:ok, Model.list(TargetingOption, data)}
+    end
+  end
+
+  @doc """
+  TikTok's Business Centers. The one network-named read in this module, because
+  no other network groups ad accounts this way. Required: `:connection_id`.
+  Optional: `:workspace_id`.
+  """
+  @spec tiktok_business_centers(Client.t(), keyword()) ::
+          {:ok, [AdBusinessCenter.t()]} | {:error, FoPost.Error.t()}
+  def tiktok_business_centers(client, opts) do
+    params = Model.take_params(opts, [:workspace_id, :connection_id])
+
+    with {:ok, data} <-
+           Client.request(client, :get, "/ads/tiktok/business-centers", params: params) do
+      {:ok, Model.list(AdBusinessCenter, data)}
+    end
+  end
+
+  @doc """
+  The accounts an ad can run as; an identity id is a `page_id`. Required:
+  `:connection_id`, `:ad_account_id`. Optional: `:workspace_id`.
+  """
+  @spec tiktok_identities(Client.t(), keyword()) ::
+          {:ok, [AdIdentity.t()]} | {:error, FoPost.Error.t()}
+  def tiktok_identities(client, opts) do
+    params = Model.take_params(opts, [:workspace_id, :connection_id, :ad_account_id])
+
+    with {:ok, data} <- Client.request(client, :get, "/ads/tiktok/identities", params: params) do
+      {:ok, Model.list(AdIdentity, data)}
+    end
+  end
+
+  @doc """
+  Posts already live under an identity, each a candidate Spark ad. Required:
+  `:connection_id`, `:ad_account_id`, `:identity_id`. Optional: `:workspace_id`.
+  """
+  @spec spark_posts(Client.t(), keyword()) ::
+          {:ok, [SparkPost.t()]} | {:error, FoPost.Error.t()}
+  def spark_posts(client, opts) do
+    params =
+      Model.take_params(opts, [:workspace_id, :connection_id, :ad_account_id, :identity_id])
+
+    with {:ok, data} <- Client.request(client, :get, "/ads/spark-posts", params: params) do
+      {:ok, Model.list(SparkPost, data)}
+    end
+  end
+
+  @doc """
+  Offline conversions against a pixel the ad account owns. Identifiers are
+  hashed before anything leaves FoPost; answers how many the network accepted.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:pixel_id`,
+  `:events`.
+  """
+  @spec upload_conversions(Client.t(), keyword()) ::
+          {:ok, non_neg_integer()} | {:error, FoPost.Error.t()}
+  def upload_conversions(client, opts) do
+    body = Model.take_body(opts, @conversion_fields)
+
+    with {:ok, data} <- Client.request(client, :post, "/ads/conversions", json: body) do
+      {:ok, Model.normalize(data)["accepted"] || 0}
+    end
+  end
+
+  @doc """
+  One page of an ad's comments; pass `next_cursor` back as `:after`. Required:
+  `:connection_id`, `:ad_id`. Optional: `:after`, `:workspace_id`.
+  """
+  @spec comments(Client.t(), keyword()) ::
+          {:ok, AdCommentsPage.t()} | {:error, FoPost.Error.t()}
+  def comments(client, opts) do
+    params = Model.take_params(opts, [:workspace_id, :connection_id, :ad_id, :after])
+
+    with {:ok, data} <- Client.request(client, :get, "/ads/comments", params: params) do
+      {:ok, AdCommentsPage.from_map(data)}
+    end
+  end
+
+  @doc """
+  Answers a comment on an ad; answers the reply's id on the network. Needs the
+  `publish` scope as well as `ads`. Required: `:workspace_id`, `:connection_id`,
+  `:ad_id`, `:text`.
+  """
+  @spec reply_to_comment(Client.t(), String.t(), keyword()) ::
+          {:ok, String.t()} | {:error, FoPost.Error.t()}
+  def reply_to_comment(client, comment_id, opts) do
+    body = Model.take_body(opts, @comment_fields)
+
+    with {:ok, data} <-
+           Client.request(client, :post, comment_path(comment_id, "reply"), json: body) do
+      {:ok, Model.normalize(data)["reply_id"] || ""}
+    end
+  end
+
+  @doc """
+  Hides or shows a comment on an ad. Needs the `publish` scope as well as `ads`.
+  Required: `:workspace_id`, `:connection_id`, `:ad_id`, `:hidden`.
+  """
+  @spec set_comment_hidden(Client.t(), String.t(), keyword()) ::
+          :ok | {:error, FoPost.Error.t()}
+  def set_comment_hidden(client, comment_id, opts) do
+    body = Model.take_body(opts, @comment_fields)
+
+    with {:ok, _} <- Client.request(client, :post, comment_path(comment_id, "hide"), json: body) do
+      :ok
+    end
+  end
+
+  @doc """
+  Removes a comment from the ad on the network. One already gone succeeds. Needs
+  the `publish` scope as well as `ads`. Required: `:workspace_id`,
+  `:connection_id`, `:ad_id`.
+  """
+  @spec delete_comment(Client.t(), String.t(), keyword()) :: :ok | {:error, FoPost.Error.t()}
+  def delete_comment(client, comment_id, opts) do
+    body = Model.take_body(opts, @comment_fields)
+
+    with {:ok, _} <- Client.request(client, :delete, comment_path(comment_id), json: body) do
+      :ok
     end
   end
 
@@ -1022,6 +1163,11 @@ defmodule FoPost.Ads do
   end
 
   defp meta_params(opts), do: Model.take_params(opts, [:workspace_id, :connection_id])
+
+  defp comment_path(id, suffix \\ nil) do
+    base = "/ads/comments/" <> URI.encode_www_form(id)
+    if suffix, do: base <> "/" <> suffix, else: base
+  end
 
   defp get_object(client, path, opts) do
     Client.request(client, :get, path, params: meta_params(opts))
