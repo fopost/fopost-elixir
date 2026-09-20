@@ -12,6 +12,9 @@ defmodule FoPost.Accounts do
   alias FoPost.Client
   alias FoPost.HealthSummary
   alias FoPost.Message
+  alias FoPost.MetaGreetingText
+  alias FoPost.MetaIceBreaker
+  alias FoPost.MetaPersistentMenuEntry
   alias FoPost.Model
   alias FoPost.Result
   alias FoPost.SlackChannel
@@ -21,6 +24,7 @@ defmodule FoPost.Accounts do
   alias FoPost.TelegramConnectCode
   alias FoPost.TelegramConnectStatus
   alias FoPost.ValidationResult
+  alias FoPost.WebhookSubscription
 
   @doc """
   The connected accounts the key can reach, optionally narrowed with `:workspace_id` or
@@ -306,6 +310,138 @@ defmodule FoPost.Accounts do
     end
   end
 
+  @doc """
+  The prompts Messenger or Instagram shows before the first message.
+
+  A network without ice breakers answers `400`.
+  """
+  @spec ice_breakers(Client.t(), String.t()) ::
+          {:ok, [MetaIceBreaker.t()]} | {:error, FoPost.Error.t()}
+  def ice_breakers(client, id) do
+    with {:ok, data} <- Client.request(client, :get, messaging_path(id, "ice-breakers")) do
+      {:ok, ice_breaker_list(data)}
+    end
+  end
+
+  @doc """
+  Replaces the ice breakers, up to four.
+
+  `ice_breakers` is a list of maps (or `FoPost.MetaIceBreaker` structs) with `:question`
+  and `:payload`.
+  """
+  @spec set_ice_breakers(Client.t(), String.t(), [map()]) ::
+          {:ok, [MetaIceBreaker.t()]} | {:error, FoPost.Error.t()}
+  def set_ice_breakers(client, id, ice_breakers) do
+    body = %{"ice_breakers" => Enum.map(ice_breakers, &ice_breaker_body/1)}
+
+    with {:ok, data} <-
+           Client.request(client, :put, messaging_path(id, "ice-breakers"), json: body) do
+      {:ok, ice_breaker_list(data)}
+    end
+  end
+
+  @doc "Clears the ice breakers."
+  @spec delete_ice_breakers(Client.t(), String.t()) ::
+          {:ok, [MetaIceBreaker.t()]} | {:error, FoPost.Error.t()}
+  def delete_ice_breakers(client, id) do
+    with {:ok, data} <- Client.request(client, :delete, messaging_path(id, "ice-breakers")) do
+      {:ok, ice_breaker_list(data)}
+    end
+  end
+
+  @doc """
+  The always-visible Messenger menu. Facebook Pages only; other networks answer `400`.
+  """
+  @spec persistent_menu(Client.t(), String.t()) ::
+          {:ok, [MetaPersistentMenuEntry.t()]} | {:error, FoPost.Error.t()}
+  def persistent_menu(client, id) do
+    with {:ok, data} <- Client.request(client, :get, messaging_path(id, "persistent-menu")) do
+      {:ok, menu_list(data)}
+    end
+  end
+
+  @doc """
+  Replaces the menu, one entry per locale, up to three items each.
+
+  Each entry is a map with `:locale` and `:call_to_actions`; each item is a map with
+  `:type` (`"postback"` or `"web_url"`), `:title`, and either `:payload` or `:url`.
+  """
+  @spec set_persistent_menu(Client.t(), String.t(), [map()]) ::
+          {:ok, [MetaPersistentMenuEntry.t()]} | {:error, FoPost.Error.t()}
+  def set_persistent_menu(client, id, menu) do
+    body = %{"persistent_menu" => Enum.map(menu, &menu_entry_body/1)}
+
+    with {:ok, data} <-
+           Client.request(client, :put, messaging_path(id, "persistent-menu"), json: body) do
+      {:ok, menu_list(data)}
+    end
+  end
+
+  @doc "Clears the menu."
+  @spec delete_persistent_menu(Client.t(), String.t()) ::
+          {:ok, [MetaPersistentMenuEntry.t()]} | {:error, FoPost.Error.t()}
+  def delete_persistent_menu(client, id) do
+    with {:ok, data} <- Client.request(client, :delete, messaging_path(id, "persistent-menu")) do
+      {:ok, menu_list(data)}
+    end
+  end
+
+  @doc """
+  The text shown before a Messenger conversation starts. Facebook Pages only.
+  """
+  @spec greeting(Client.t(), String.t()) ::
+          {:ok, [MetaGreetingText.t()]} | {:error, FoPost.Error.t()}
+  def greeting(client, id) do
+    with {:ok, data} <- Client.request(client, :get, messaging_path(id, "greeting")) do
+      {:ok, greeting_list(data)}
+    end
+  end
+
+  @doc """
+  Replaces the greeting, one entry per locale, each up to 160 characters.
+
+  Each entry is a map with `:text` and an optional `:locale`, which defaults to
+  `"default"`.
+  """
+  @spec set_greeting(Client.t(), String.t(), [map()]) ::
+          {:ok, [MetaGreetingText.t()]} | {:error, FoPost.Error.t()}
+  def set_greeting(client, id, greeting) do
+    body = %{"greeting" => Enum.map(greeting, &greeting_body/1)}
+
+    with {:ok, data} <- Client.request(client, :put, messaging_path(id, "greeting"), json: body) do
+      {:ok, greeting_list(data)}
+    end
+  end
+
+  @doc "Clears the greeting."
+  @spec delete_greeting(Client.t(), String.t()) ::
+          {:ok, [MetaGreetingText.t()]} | {:error, FoPost.Error.t()}
+  def delete_greeting(client, id) do
+    with {:ok, data} <- Client.request(client, :delete, messaging_path(id, "greeting")) do
+      {:ok, greeting_list(data)}
+    end
+  end
+
+  @doc """
+  What the network is delivering to the FoPost webhook for this account.
+  """
+  @spec webhook_subscription(Client.t(), String.t()) ::
+          {:ok, WebhookSubscription.t()} | {:error, FoPost.Error.t()}
+  def webhook_subscription(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/webhook-subscription") do
+      {:ok, WebhookSubscription.from_map(data)}
+    end
+  end
+
+  @doc "Subscribes to every field this account needs, lapsed or not."
+  @spec resubscribe_webhook(Client.t(), String.t()) ::
+          {:ok, WebhookSubscription.t()} | {:error, FoPost.Error.t()}
+  def resubscribe_webhook(client, id) do
+    with {:ok, data} <- Client.request(client, :post, path(id) <> "/webhook-subscription") do
+      {:ok, WebhookSubscription.from_map(data)}
+    end
+  end
+
   @doc "Same as `list/2`, but raises `FoPost.Error`."
   def list!(client, opts \\ []), do: Result.unwrap!(list(client, opts))
 
@@ -374,7 +510,79 @@ defmodule FoPost.Accounts do
   def update_slack_identity!(client, id, opts),
     do: Result.unwrap!(update_slack_identity(client, id, opts))
 
+  @doc "Same as `ice_breakers/2`, but raises `FoPost.Error`."
+  def ice_breakers!(client, id), do: Result.unwrap!(ice_breakers(client, id))
+
+  @doc "Same as `set_ice_breakers/3`, but raises `FoPost.Error`."
+  def set_ice_breakers!(client, id, ice_breakers),
+    do: Result.unwrap!(set_ice_breakers(client, id, ice_breakers))
+
+  @doc "Same as `delete_ice_breakers/2`, but raises `FoPost.Error`."
+  def delete_ice_breakers!(client, id), do: Result.unwrap!(delete_ice_breakers(client, id))
+
+  @doc "Same as `persistent_menu/2`, but raises `FoPost.Error`."
+  def persistent_menu!(client, id), do: Result.unwrap!(persistent_menu(client, id))
+
+  @doc "Same as `set_persistent_menu/3`, but raises `FoPost.Error`."
+  def set_persistent_menu!(client, id, menu),
+    do: Result.unwrap!(set_persistent_menu(client, id, menu))
+
+  @doc "Same as `delete_persistent_menu/2`, but raises `FoPost.Error`."
+  def delete_persistent_menu!(client, id), do: Result.unwrap!(delete_persistent_menu(client, id))
+
+  @doc "Same as `greeting/2`, but raises `FoPost.Error`."
+  def greeting!(client, id), do: Result.unwrap!(greeting(client, id))
+
+  @doc "Same as `set_greeting/3`, but raises `FoPost.Error`."
+  def set_greeting!(client, id, greeting), do: Result.unwrap!(set_greeting(client, id, greeting))
+
+  @doc "Same as `delete_greeting/2`, but raises `FoPost.Error`."
+  def delete_greeting!(client, id), do: Result.unwrap!(delete_greeting(client, id))
+
+  @doc "Same as `webhook_subscription/2`, but raises `FoPost.Error`."
+  def webhook_subscription!(client, id), do: Result.unwrap!(webhook_subscription(client, id))
+
+  @doc "Same as `resubscribe_webhook/2`, but raises `FoPost.Error`."
+  def resubscribe_webhook!(client, id), do: Result.unwrap!(resubscribe_webhook(client, id))
+
   defp commands_path(id), do: path(id) <> "/telegram/commands"
+
+  defp messaging_path(id, field), do: path(id) <> "/messaging/" <> field
+
+  defp ice_breaker_list(data),
+    do: Model.list(MetaIceBreaker, Model.normalize(data)["ice_breakers"])
+
+  defp menu_list(data),
+    do: Model.list(MetaPersistentMenuEntry, Model.normalize(data)["persistent_menu"])
+
+  defp greeting_list(data), do: Model.list(MetaGreetingText, Model.normalize(data)["greeting"])
+
+  defp ice_breaker_body(breaker) do
+    %{"question" => field(breaker, :question), "payload" => field(breaker, :payload)}
+  end
+
+  defp greeting_body(greeting) do
+    %{"locale" => field(greeting, :locale) || "default", "text" => field(greeting, :text)}
+  end
+
+  defp menu_entry_body(entry) do
+    %{
+      "locale" => field(entry, :locale) || "default",
+      "call_to_actions" => Enum.map(field(entry, :call_to_actions) || [], &menu_item_body/1)
+    }
+  end
+
+  # A postback carries a payload and a link a url; the unused key is left out.
+  defp menu_item_body(item) do
+    %{"type" => field(item, :type), "title" => field(item, :title)}
+    |> put_present("payload", field(item, :payload))
+    |> put_present("url", field(item, :url))
+  end
+
+  defp put_present(map, _key, nil), do: map
+  defp put_present(map, key, value), do: Map.put(map, key, value)
+
+  defp field(source, key), do: Map.get(source, key, Map.get(source, to_string(key)))
 
   defp commands(data), do: Model.list(TelegramBotCommand, Model.normalize(data)["commands"])
 
