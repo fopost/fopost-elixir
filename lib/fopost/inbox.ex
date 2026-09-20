@@ -1,6 +1,6 @@
 defmodule FoPost.Inbox do
   @moduledoc """
-  Comments, mentions, and direct messages on connected accounts.
+  Comments, mentions, reviews, and direct messages on connected accounts.
 
   Every function needs the `inbox` scope. Lists answer a `FoPost.Page` whose
   `meta.current_page`, `meta.per_page`, and `meta.total` are set.
@@ -15,6 +15,7 @@ defmodule FoPost.Inbox do
   alias FoPost.InboxConversation
   alias FoPost.InboxConversationStart
   alias FoPost.InboxDecision
+  alias FoPost.InboxHandover
   alias FoPost.InboxItem
   alias FoPost.InboxPlatform
   alias FoPost.InboxRefreshResult
@@ -67,7 +68,7 @@ defmodule FoPost.Inbox do
   @doc """
   One page of items, newest first.
 
-  Filters: `:workspace_id`, `:type` (`comment`, `mention`, `dm`), `:state` (`unread`,
+  Filters: `:workspace_id`, `:type` (`comment`, `mention`, `review`, `dm`), `:state` (`unread`,
   `read`, `resolved`, `snoozed`), `:platform`, `:account_id`, `:post_id`,
   `:post_external_id`, `:conversation_id`, `:direction` (`inbound`, `outbound`), `:q`,
   `:sort` (`newest`, `oldest`, `unanswered`). Paging: `:page`, `:per_page`.
@@ -82,10 +83,10 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
-  One page of threads: one row per post with comments, or with mentions when `:kind` is
-  `"mentions"`.
+  One page of threads: one row per post with comments, with mentions when `:kind` is
+  `"mentions"`, or one row per review when it is `"reviews"`.
 
-  Filters: `:workspace_id`, `:kind` (`comments`, `mentions`), `:platform`, `:account_id`,
+  Filters: `:workspace_id`, `:kind` (`comments`, `mentions`, `reviews`), `:platform`, `:account_id`,
   `:state`, `:q`, `:sort`. Paging: `:page`, `:per_page`.
   """
   @spec threads(Client.t(), keyword()) :: {:ok, Page.t()} | {:error, FoPost.Error.t()}
@@ -332,6 +333,27 @@ defmodule FoPost.Inbox do
   end
 
   @doc """
+  Passes a Messenger thread to another Meta app, or takes it back.
+
+  Options: `:app_id` passes control to that Meta app, and leaving it out takes control
+  back; `:metadata` rides along. Also needs the `publish` scope.
+  """
+  @spec handover(Client.t(), String.t(), String.t(), keyword()) ::
+          {:ok, InboxHandover.t()} | {:error, FoPost.Error.t()}
+  def handover(client, conversation_id, account_id, opts \\ []) do
+    body =
+      opts
+      |> Model.take_body([:app_id, :metadata])
+      |> Map.put("account_id", account_id)
+
+    handover_path = "/inbox/conversations/" <> encode(conversation_id) <> "/handover"
+
+    with {:ok, data} <- Client.request(client, :post, handover_path, json: body) do
+      {:ok, InboxHandover.from_map(data)}
+    end
+  end
+
+  @doc """
   Replies an automation or the agent drafted that a person still has to send.
   """
   @spec approvals(Client.t(), keyword()) ::
@@ -431,6 +453,10 @@ defmodule FoPost.Inbox do
   @doc "Same as `set_typing/3`, but raises `FoPost.Error`."
   def set_typing!(client, conversation_id, opts),
     do: Result.unwrap!(set_typing(client, conversation_id, opts))
+
+  @doc "Same as `handover/4`, but raises `FoPost.Error`."
+  def handover!(client, conversation_id, account_id, opts \\ []),
+    do: Result.unwrap!(handover(client, conversation_id, account_id, opts))
 
   @doc "Same as `approvals/2`, but raises `FoPost.Error`."
   def approvals!(client, opts \\ []), do: Result.unwrap!(approvals(client, opts))

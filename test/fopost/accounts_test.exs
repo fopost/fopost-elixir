@@ -225,4 +225,157 @@ defmodule FoPost.AccountsTest do
     assert {:error, %FoPost.Error{status: 409, code: "webhook_connection"}} =
              FoPost.Accounts.slack_channels(client, "acc_1")
   end
+
+  test "discord channels list and the channel switch", %{bypass: bypass} do
+    channel = %{
+      "id" => "c2",
+      "name" => "launches",
+      "type" => 0,
+      "parent_id" => nil,
+      "nsfw" => false,
+      "can_post" => true,
+      "is_current" => true
+    }
+
+    Bypass.expect(bypass, fn conn ->
+      case conn.method do
+        "GET" ->
+          assert conn.request_path == "/v1/accounts/acc_1/discord/channels"
+          TestSupport.json(conn, 200, %{"data" => [channel]})
+
+        "PATCH" ->
+          assert conn.request_path == "/v1/accounts/acc_1/discord/channels/current"
+          {:ok, raw, conn} = Plug.Conn.read_body(conn)
+          assert Jason.decode!(raw) == %{"channel_id" => "c2"}
+          TestSupport.json(conn, 200, %{"data" => channel})
+      end
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, [%FoPost.DiscordChannel{id: "c2", is_current: true}]} =
+             FoPost.Accounts.discord_channels(client, "acc_1")
+
+    assert {:ok, %FoPost.DiscordChannel{name: "launches"}} =
+             FoPost.Accounts.switch_discord_channel(client, "acc_1", "c2")
+  end
+
+  test "update_discord_identity omits unset keys", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "PATCH", "/v1/accounts/acc_1/discord/identity", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      # A key left out never reaches the wire, so Discord keeps it.
+      assert Jason.decode!(raw) == %{"username" => "Release Bot"}
+
+      TestSupport.json(conn, 200, %{"data" => %{"username" => "Release Bot", "avatar_url" => nil}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %FoPost.DiscordIdentity{username: "Release Bot"}} =
+             FoPost.Accounts.update_discord_identity(client, "acc_1", username: "Release Bot")
+  end
+
+  test "a discord scheduled event round-trips", %{bypass: bypass} do
+    event = %{
+      "id" => "e1",
+      "name" => "Launch stream",
+      "description" => nil,
+      "channel_id" => nil,
+      "location" => "https://example.com/live",
+      "start_time" => "2026-10-01T18:00:00.000Z",
+      "end_time" => "2026-10-01T19:00:00.000Z",
+      "status" => "scheduled",
+      "user_count" => 0
+    }
+
+    Bypass.expect(bypass, fn conn ->
+      case conn.method do
+        "POST" ->
+          {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+          assert Jason.decode!(raw) == %{
+                   "name" => "Launch stream",
+                   "start_time" => "2026-10-01T18:00:00.000Z",
+                   "end_time" => "2026-10-01T19:00:00.000Z",
+                   "location" => "https://example.com/live"
+                 }
+
+          TestSupport.json(conn, 201, %{"data" => event})
+
+        "GET" ->
+          TestSupport.json(conn, 200, %{"data" => [event]})
+
+        "PATCH" ->
+          {:ok, raw, conn} = Plug.Conn.read_body(conn)
+          assert Jason.decode!(raw) == %{"status" => "canceled"}
+          TestSupport.json(conn, 200, %{"data" => Map.put(event, "status", "canceled")})
+
+        "DELETE" ->
+          TestSupport.json(conn, 200, %{"data" => %{"deleted" => true}})
+      end
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, %FoPost.DiscordScheduledEvent{id: "e1"}} =
+             FoPost.Accounts.create_discord_event(client, "acc_1",
+               name: "Launch stream",
+               start_time: "2026-10-01T18:00:00.000Z",
+               end_time: "2026-10-01T19:00:00.000Z",
+               location: "https://example.com/live"
+             )
+
+    assert {:ok, [%FoPost.DiscordScheduledEvent{id: "e1"}]} =
+             FoPost.Accounts.discord_events(client, "acc_1")
+
+    assert {:ok, %FoPost.DiscordScheduledEvent{status: "canceled"}} =
+             FoPost.Accounts.update_discord_event(client, "acc_1", "e1", status: "canceled")
+
+    assert {:ok, %FoPost.DiscordAck{deleted: true}} =
+             FoPost.Accounts.delete_discord_event(client, "acc_1", "e1")
+  end
+
+  test "discord members, roles and direct messages", %{bypass: bypass} do
+    Bypass.expect(bypass, fn conn ->
+      case conn.request_path do
+        "/v1/accounts/acc_1/discord/members" ->
+          assert conn.query_string == "q=ada"
+
+          TestSupport.json(conn, 200, %{
+            "data" => [%{"id" => "u7", "username" => "ada", "is_bot" => false, "roles" => ["r1"]}]
+          })
+
+        "/v1/accounts/acc_1/discord/roles/r1/members/u7" ->
+          assert conn.method == "PUT"
+          TestSupport.json(conn, 200, %{"data" => %{"assigned" => true}})
+
+        "/v1/accounts/acc_1/discord/dm" ->
+          {:ok, raw, conn} = Plug.Conn.read_body(conn)
+          assert Jason.decode!(raw) == %{"member_id" => "u7", "content" => "hi"}
+          TestSupport.json(conn, 201, %{"data" => %{"id" => "m1", "channel_id" => "dm1"}})
+      end
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:ok, [%FoPost.DiscordMember{id: "u7", roles: ["r1"]}]} =
+             FoPost.Accounts.discord_members(client, "acc_1", q: "ada")
+
+    assert {:ok, %FoPost.DiscordAck{assigned: true}} =
+             FoPost.Accounts.add_discord_member_role(client, "acc_1", "r1", "u7")
+
+    assert {:ok, %FoPost.DiscordMessageRef{channel_id: "dm1"}} =
+             FoPost.Accounts.send_discord_direct_message(client, "acc_1", "u7", "hi")
+  end
+
+  test "discord calls surface a webhook connection as a 409", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/accounts/acc_1/discord/channels", fn conn ->
+      TestSupport.json(conn, 409, %{"error" => "webhook_connection", "message" => "Upgrade it"})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    assert {:error, %FoPost.Error{status: 409, code: "webhook_connection"}} =
+             FoPost.Accounts.discord_channels(client, "acc_1")
+  end
 end
