@@ -234,7 +234,8 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 `FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.AccountGroups` ·
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
-`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate`
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` ·
+`FoPost.Activity`
 
 ## Inbox and ads
 
@@ -297,6 +298,24 @@ hd(result.platforms).limit
 
 {:ok, result} = FoPost.Validate.media(client, url: "https://cdn.yourbrand.com/chart.png")
 result.ok
+```
+
+## Activity
+
+`FoPost.Activity.list/2` reads what happened in a workspace, newest first.
+
+```elixir
+{:ok, page} = FoPost.Activity.list(client, workspace_id: workspace_id)
+Enum.each(page.data, &IO.puts("#{&1.actor.name}: #{&1.summary}"))
+page.next_cursor
+```
+
+`kind: "security"` is the audit log: members joining, leaving or changing role and
+access, and changes to two-step verification, passkeys, single sign-on and
+signed-in devices. Those rows are append-only and never expire.
+
+```elixir
+{:ok, audit} = FoPost.Activity.list(client, workspace_id: workspace_id, kind: "security")
 ```
 
 ## Examples
