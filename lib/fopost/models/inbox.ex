@@ -524,3 +524,25 @@ defmodule FoPost.InboxConversationStart do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.InboxHandover do
+  @moduledoc """
+  The outcome of a Messenger thread hand-over. `:app_id` is `nil` when control was taken
+  back, and `:control` is `"passed"` or `"taken"`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:app_id, :control, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{app_id: fields["app_id"], control: fields["control"], raw: data}
+  end
+
+  def from_map(_data), do: nil
+end
