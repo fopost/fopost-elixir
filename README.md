@@ -235,7 +235,8 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.AccountGroups` ·
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
-`FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Ads` · `FoPost.Validate`
+`FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
+`FoPost.Validate`
 
 ## Inbox, contacts, broadcasts and ads
 
@@ -286,6 +287,10 @@ Enum.each(page.data, &IO.puts("#{&1.display_name} — #{&1.skip_reason}"))
 {:ok, _} = FoPost.Sequences.unenroll(client, sequence.id, [contact_id])
 ```
 
+`FoPost.Knowledge` holds what the workspace has
+told FoPost about itself — FAQs, notes, your own pages and plain-text files — and
+`search/3` returns the passages that ground a drafted reply in your own answers rather
+than an invented one (same `inbox` scope).
 `FoPost.Ads` boosts posts, creates ads, and
 manages campaigns, ad sets, creatives, audiences, insights, lead forms, and the leads
 feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
