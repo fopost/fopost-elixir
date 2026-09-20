@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.InboxItem` carries `:moderation_status` (the platform's own state for
+  a comment: `"published"`, `"held"`, `"spam"`, `"rejected"`), and
+  `FoPost.InboxAccount` carries `:reconnect_required` for an account connected
+  before the inbox asked for a permission it needs.
 - `FoPost.Broadcasts` — one message into every conversation the workspace already
   has with a segment of its contacts: `list/2`, `get/2`, `create/2`, `update/3`,
   `delete/2`, `send/2`, `cancel/2`, `recipients/3`. Reading needs `inbox`; `send/2`
