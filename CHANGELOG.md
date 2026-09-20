@@ -8,6 +8,14 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Meta messaging settings on `FoPost.Accounts`: `ice_breakers/2`, `set_ice_breakers/3`, and
+  `delete_ice_breakers/2` (Facebook Pages and Instagram), plus `persistent_menu/2`,
+  `set_persistent_menu/3`, `delete_persistent_menu/2`, `greeting/2`, `set_greeting/3`, and
+  `delete_greeting/2` (Facebook Pages). A network without a field answers 400.
+- `FoPost.Accounts.webhook_subscription/2` reports whether the network is still delivering
+  events for an account, and `resubscribe_webhook/2` puts a lapsed subscription back.
+- `FoPost.Inbox.handover/4` passes a Messenger thread to another Meta app, or takes it back
+  when no `:app_id` is given (scope `inbox`, plus `publish`).
 - `FoPost.Accounts.slack_channels/2`, `slack_members/2`, `slack_identity/2`, and
   `update_slack_identity/3` read a Slack account's channels and workspace members and set
   the name and icon it posts under; a `nil` option clears a field (scope `accounts`).
