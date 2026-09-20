@@ -234,12 +234,16 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 `FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.AccountGroups` ·
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
-`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate`
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
+`FoPost.Ads` · `FoPost.Validate`
 
-## Inbox and ads
+## Inbox, contacts and ads
 
 `FoPost.Inbox` reads comments, mentions, and direct messages on connected accounts and
-replies as the account (scope `inbox`). `FoPost.Ads` boosts posts, creates ads, and
+replies as the account (scope `inbox`). `FoPost.Contacts` is the people behind that
+inbox: one row per human however many handles they write from, the custom fields the
+workspace keeps about them, and a CSV import (scope `inbox`, except
+`conversation_analytics/2`, which answers counts per thread under `analytics`). `FoPost.Ads` boosts posts, creates ads, and
 manages campaigns, ad sets, creatives, audiences, insights, lead forms, and the leads
 feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
 `bulk_set_status/2`, and the campaign, ad set, and network ad writes spend money and also
