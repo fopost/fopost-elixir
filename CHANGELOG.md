@@ -11,6 +11,16 @@ All notable changes to this project are documented in this file. The format foll
 - `FoPost.Accounts.slack_channels/2`, `slack_members/2`, `slack_identity/2`, and
   `update_slack_identity/3` read a Slack account's channels and workspace members and set
   the name and icon it posts under; a `nil` option clears a field (scope `accounts`).
+- The Discord bot surface on `FoPost.Accounts`: `discord_channels/2`,
+  `switch_discord_channel/3`, `discord_identity/2`, `update_discord_identity/3`,
+  `discord_pins/2`, `delete_discord_message/3`, `pin_discord_message/3`,
+  `unpin_discord_message/3`, `crosspost_discord_message/3`, `create_discord_thread/4`,
+  `send_discord_direct_message/4`, `discord_events/2`, `discord_event/3`,
+  `create_discord_event/3`, `update_discord_event/4`, `delete_discord_event/3`,
+  `discord_members/3`, `discord_member/3`, `discord_roles/2`, `create_discord_role/3`,
+  `update_discord_role/4`, `delete_discord_role/3`, `add_discord_member_role/4` and
+  `remove_discord_member_role/4` (scope `accounts`, plus `publish` for anything that
+  posts). A connection made with a webhook answers `409 webhook_connection`.
 
 ## [0.3.0] - 2026-09-19
 
