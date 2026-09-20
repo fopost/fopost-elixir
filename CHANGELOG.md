@@ -47,6 +47,9 @@ All notable changes to this project are documented in this file. The format foll
   `update_discord_role/4`, `delete_discord_role/3`, `add_discord_member_role/4` and
   `remove_discord_member_role/4` (scope `accounts`, plus `publish` for anything that
   posts). A connection made with a webhook answers `409 webhook_connection`.
+- `FoPost.DiscordChannel` carries `:can_post`, false when a channel permission in
+  Discord shuts the bot out; `switch_discord_channel/3` answers
+  `409 channel_not_writable` for one.
 
 ## [0.3.0] - 2026-09-19
 

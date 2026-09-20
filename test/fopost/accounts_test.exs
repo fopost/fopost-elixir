@@ -233,6 +233,7 @@ defmodule FoPost.AccountsTest do
       "type" => 0,
       "parent_id" => nil,
       "nsfw" => false,
+      "can_post" => true,
       "is_current" => true
     }
 
