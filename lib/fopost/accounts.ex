@@ -9,6 +9,7 @@ defmodule FoPost.Accounts do
   alias FoPost.Account
   alias FoPost.AccountAnalytics
   alias FoPost.AccountHealth
+  alias FoPost.AccountPlatformMetrics
   alias FoPost.BlueskyLanguages
   alias FoPost.Client
   alias FoPost.DiscordAck
@@ -168,6 +169,24 @@ defmodule FoPost.Accounts do
 
     with {:ok, data} <- Client.request(client, :get, path(id) <> "/health", params: params) do
       {:ok, AccountHealth.from_map(data)}
+    end
+  end
+
+  @doc """
+  The numbers only this account's network reports, in its own vocabulary: ad-break
+  earnings, story taps, a retention curve, the search terms behind a listing.
+
+  Keyed by the platform's own metric names, read from the newest collected snapshot
+  rather than fetched live. Needs the `analytics` scope. A network whose metric access
+  has not been granted yet answers `503` (`platform_metrics_unavailable`) rather than an
+  empty set.
+  """
+  @spec platform_metrics(Client.t(), String.t()) ::
+          {:ok, AccountPlatformMetrics.t()} | {:error, FoPost.Error.t()}
+  def platform_metrics(client, id) do
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/insights", params: [{"raw", "true"}]) do
+      {:ok, AccountPlatformMetrics.from_map(data)}
     end
   end
 
