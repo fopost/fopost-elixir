@@ -237,6 +237,7 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
 `FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
 `FoPost.Validate` · `FoPost.Activity`
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
 
@@ -334,6 +335,32 @@ meta = [workspace_id: workspace.id, connection_id: connection.id]
 {:ok, page} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, limit: 50)
 {:ok, next} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, cursor: page.next_cursor)
 ```
+
+## Google Business Profile
+
+`FoPost.GoogleBusiness` manages a connected Business Profile location: the profile,
+attributes, food menus, services, photos, action links, verification and performance.
+
+```elixir
+{:ok, location} = FoPost.GoogleBusiness.get_location(client, account_id)
+
+{:ok, _} =
+  FoPost.GoogleBusiness.update_location(client, account_id, %{"title" => "Corner Bakery"})
+
+# Photos come from your media library, JPEG or PNG.
+{:ok, _} = FoPost.GoogleBusiness.add_media(client, account_id, media_id: media_id,
+                                            category: "INTERIOR")
+
+{:ok, metrics} =
+  FoPost.GoogleBusiness.get_performance(client, account_id,
+    start_date: "2026-09-01",
+    end_date: "2026-09-30"
+  )
+```
+
+Responses relay Google's own shape as plain maps. Reads need the `accounts` scope, writes
+`publish` as well. Every call answers a 503 `configuration_error` until Google grants the
+deployment Business Profile API access.
 
 ## Validating
 
