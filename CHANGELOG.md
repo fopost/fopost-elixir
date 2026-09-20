@@ -8,6 +8,16 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Whatsapp` for a WhatsApp Business connection: the business profile
+  (`profile/2`, `update_profile/3`, `request_display_name/3`, `set_username/3`),
+  message templates including the platform's own library (`templates/3`,
+  `create_template/3`, `import_template/3`, …), groups, blocking, commerce settings
+  and flows (`create_flow/3`, `upload_flow_json/4`, `publish_flow/3`,
+  `flow_responses/2`, …), plus `account_events/2`. All need the `accounts` scope.
+- `FoPost.Whatsapp.create_sandbox_session/2` and `sandbox_sessions/2` invite a tester
+  to the platform-owned WhatsApp test number. Inviting sends a template, so it needs
+  the `publish` scope.
+
 - `FoPost.Accounts.slack_channels/2`, `slack_members/2`, `slack_identity/2`, and
   `update_slack_identity/3` read a Slack account's channels and workspace members and set
   the name and icon it posts under; a `nil` option clears a field (scope `accounts`).
