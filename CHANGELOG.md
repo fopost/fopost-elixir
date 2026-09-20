@@ -8,6 +8,17 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Broadcasts` — one message into every conversation the workspace already
+  has with a segment of its contacts: `list/2`, `get/2`, `create/2`, `update/3`,
+  `delete/2`, `send/2`, `cancel/2`, `recipients/3`. Reading needs `inbox`; `send/2`
+  and `cancel/2` also need `publish`.
+- `FoPost.Sequences` — a series of messages on a delay: `list/2`, `get/2`,
+  `create/2`, `update/3`, `delete/2`, `enroll/3`, `unenroll/3`, `enrollments/3`.
+  `enroll/3` and `unenroll/3` need `publish`.
+- Both honour each network's messaging window server-side. Messenger and Instagram
+  take a business-initiated message only within 24 hours of the contact's last one,
+  so recipients outside it come back skipped with `"window_closed"` and nothing is
+  attempted — the number sent is often lower than the audience.
 - `FoPost.Contacts` — the people behind the inbox: `list/2`, `get/2`, `create/2`,
   `update/3`, `delete/2`, `conversations/3` and `import/3`, plus `list_fields/2`,
   `create_field/3`, `update_field/3` and `delete_field/2` for the columns a workspace
