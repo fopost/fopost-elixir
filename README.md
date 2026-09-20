@@ -402,6 +402,22 @@ signed-in devices. Those rows are append-only and never expire.
 [`examples/create_post.exs`](examples/create_post.exs) creates a draft, preflights it, and
 publishes it.
 
+## Chatbots and the inbox
+
+The [chat adapter](https://fopost.com/docs/sdks/chat-adapter) turns the FoPost inbox into one send/receive channel for a chatbot
+framework. It ships in the TypeScript and Python SDKs. There is no dedicated adapter here and no
+API change behind it, so the same loop is three pieces with this client:
+
+1. **Verify** the `inbox.message_received` webhook. The payload is ids only, on purpose, so
+   nothing a customer wrote sits in your logs. The [signing scheme](https://fopost.com/docs/webhooks/verification)
+   is HMAC-SHA256 over `{timestamp}.{body}`, refused past a five minute tolerance.
+2. **Read** the item back with `FoPost.Inbox.list(client, type: "dm", account_id: account_id)`, filtered to the payload's
+   `accountId` and matched on its `itemId`.
+3. **Answer** with `FoPost.Inbox.reply(client, item.id, text: text)`, or open a thread with
+   `FoPost.Inbox.start_conversation(client, …)`.
+
+Reading needs the `inbox` scope; answering needs `publish` as well.
+
 ## Development
 
 ```bash
