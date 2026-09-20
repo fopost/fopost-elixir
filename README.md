@@ -282,6 +282,48 @@ meta = [workspace_id: workspace.id, connection_id: connection.id]
 {:ok, next} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, cursor: page.next_cursor)
 ```
 
+## Analytics
+
+```elixir
+# How long a post keeps earning, from the repeated readings of each post
+{:ok, decay} = FoPost.Analytics.decay(client, days: 30)
+decay.half_life_bucket
+#=> "1h_3h"
+
+# Whether posting more earned more
+{:ok, cadence} = FoPost.Analytics.frequency(client, days: 90)
+cadence.best.label
+#=> "3-5 a week"
+
+# Every reading held for one post, with what moved between them
+{:ok, timeline} = FoPost.Analytics.timeline(client, post.id)
+
+# Mirror the metrics into your own store, without refetching everything
+Stream.unfold(nil, fn
+  :done ->
+    nil
+
+  cursor ->
+    {:ok, page} = FoPost.Analytics.changes(client, since: cursor)
+    next = if page.has_more and page.cursor, do: DateTime.to_iso8601(page.cursor), else: :done
+    {page.changes, next}
+end)
+|> Enum.each(&save/1)
+
+# Refresh one post now instead of waiting for the next collection run
+{:ok, _} = FoPost.Analytics.collect_post(client, post.id)
+
+# Posts on the account that never went out through FoPost
+{:ok, page} = FoPost.Analytics.native_posts(client, account.id)
+```
+
+A post is addressed by its FoPost id or by its permalink, so a post made by
+hand on the network works the same way:
+
+```elixir
+FoPost.Analytics.timeline(client, "https://x.com/acme/status/1")
+```
+
 ## Validating
 
 `FoPost.Validate` checks content against platform rules without creating a post; nothing
