@@ -532,12 +532,13 @@ end
 defmodule FoPost.DiscordChannel do
   @moduledoc """
   A Discord text channel the bot can post to. `:type` is Discord's channel type — 0 text,
-  5 announcement, 15 forum — and `:is_current` marks the one this account posts to.
+  5 announcement, 15 forum — `:can_post` is false when a channel permission in Discord
+  shuts the bot out, and `:is_current` marks the one this account posts to.
   """
 
   alias FoPost.Model
 
-  defstruct [:id, :name, :type, :parent_id, :nsfw, :is_current, :raw]
+  defstruct [:id, :name, :type, :parent_id, :nsfw, :can_post, :is_current, :raw]
 
   @type t :: %__MODULE__{}
 
@@ -551,6 +552,7 @@ defmodule FoPost.DiscordChannel do
       type: fields["type"],
       parent_id: fields["parent_id"],
       nsfw: fields["nsfw"],
+      can_post: fields["can_post"],
       is_current: fields["is_current"],
       raw: data
     }
