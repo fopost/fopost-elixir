@@ -240,8 +240,9 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 `FoPost.Inbox` reads comments, mentions, and direct messages on connected accounts and
 replies as the account (scope `inbox`). `FoPost.Ads` boosts posts, creates ads, and
-manages campaigns, ad sets, creatives, audiences, insights, lead forms, and the leads
-feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
+manages campaigns, ad sets, creatives, product catalogs, audiences, reach-and-frequency
+predictions, the public ad archive, ad account settings, insights, lead forms, and the
+leads feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
 `bulk_set_status/2`, and the campaign, ad set, and network ad writes spend money and also
 need `publish`). A boost, campaign, ad set, or ad starts paused unless `paused: false`.
 Campaign-tree objects are addressed by Meta id and read live, so those calls take
