@@ -9,6 +9,7 @@ defmodule FoPost.Accounts do
   alias FoPost.Account
   alias FoPost.AccountAnalytics
   alias FoPost.AccountHealth
+  alias FoPost.BlueskyLanguages
   alias FoPost.Client
   alias FoPost.DiscordAck
   alias FoPost.DiscordChannel
@@ -20,11 +21,17 @@ defmodule FoPost.Accounts do
   alias FoPost.DiscordScheduledEvent
   alias FoPost.DiscordThread
   alias FoPost.HealthSummary
+  alias FoPost.InstagramAudio
+  alias FoPost.InstagramPublishingLimit
+  alias FoPost.InstagramStory
+  alias FoPost.InstagramStoryInsights
+  alias FoPost.LinkedInMention
   alias FoPost.Message
   alias FoPost.MetaGreetingText
   alias FoPost.MetaIceBreaker
   alias FoPost.MetaPersistentMenuEntry
   alias FoPost.Model
+  alias FoPost.PinterestBoard
   alias FoPost.Result
   alias FoPost.SlackChannel
   alias FoPost.SlackIdentity
@@ -32,8 +39,15 @@ defmodule FoPost.Accounts do
   alias FoPost.TelegramBotCommand
   alias FoPost.TelegramConnectCode
   alias FoPost.TelegramConnectStatus
+  alias FoPost.TikTokCreatorInfo
+  alias FoPost.TikTokMusic
+  alias FoPost.TikTokPlace
+  alias FoPost.TikTokVideoSource
   alias FoPost.ValidationResult
   alias FoPost.WebhookSubscription
+  alias FoPost.YouTubeCaptionTrack
+  alias FoPost.YouTubePlaylist
+  alias FoPost.YouTubeTranscript
 
   @doc """
   The connected accounts the key can reach, optionally narrowed with `:workspace_id` or
@@ -713,6 +727,269 @@ defmodule FoPost.Accounts do
           {:ok, DiscordAck.t()} | {:error, FoPost.Error.t()}
   def remove_discord_member_role(client, id, role_id, member_id) do
     ack(client, :delete, member_role(id, role_id, member_id))
+  end
+
+  @doc """
+  Boards this Pinterest connection can pin to.
+  """
+  @spec pinterest_boards(Client.t(), String.t()) ::
+          {:ok, [PinterestBoard.t()]} | {:error, FoPost.Error.t()}
+  def pinterest_boards(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/pinterest/boards") do
+      {:ok, Model.list(PinterestBoard, data)}
+    end
+  end
+
+  @doc """
+  Creates a board on the connected Pinterest account.
+
+  Options: `:name` (required), `:description`, and `:privacy`, which is `"PUBLIC"`,
+  `"PROTECTED"` or `"SECRET"` and defaults to public.
+  """
+  @spec create_pinterest_board(Client.t(), String.t(), keyword()) ::
+          {:ok, PinterestBoard.t()} | {:error, FoPost.Error.t()}
+  def create_pinterest_board(client, id, opts) do
+    body = Model.take_body(opts, [:name, :description, :privacy])
+
+    with {:ok, data} <-
+           Client.request(client, :post, path(id) <> "/pinterest/boards", json: body) do
+      {:ok, PinterestBoard.from_map(data)}
+    end
+  end
+
+  @doc """
+  The channel's own playlists, with the stored default marked.
+  """
+  @spec youtube_playlists(Client.t(), String.t()) ::
+          {:ok, [YouTubePlaylist.t()]} | {:error, FoPost.Error.t()}
+  def youtube_playlists(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/youtube/playlists") do
+      {:ok, Model.list(YouTubePlaylist, data)}
+    end
+  end
+
+  @doc """
+  Creates a playlist on the connected channel.
+
+  Options: `:title` (required), `:description`, and `:privacy`, which is `"public"`,
+  `"unlisted"` or `"private"` and defaults to private.
+  """
+  @spec create_youtube_playlist(Client.t(), String.t(), keyword()) ::
+          {:ok, YouTubePlaylist.t()} | {:error, FoPost.Error.t()}
+  def create_youtube_playlist(client, id, opts) do
+    body = Model.take_body(opts, [:title, :description, :privacy])
+
+    with {:ok, data} <-
+           Client.request(client, :post, path(id) <> "/youtube/playlists", json: body) do
+      {:ok, YouTubePlaylist.from_map(data)}
+    end
+  end
+
+  @doc """
+  The playlist a new video joins when the post picks none. A `nil` `playlist_id` clears
+  it; the stored value comes back.
+  """
+  @spec set_default_youtube_playlist(Client.t(), String.t(), String.t() | nil) ::
+          {:ok, String.t() | nil} | {:error, FoPost.Error.t()}
+  def set_default_youtube_playlist(client, id, playlist_id) do
+    body = %{"playlist_id" => playlist_id}
+
+    with {:ok, data} <-
+           Client.request(client, :put, path(id) <> "/youtube/playlists/default", json: body) do
+      {:ok, Model.normalize(data)["playlist_id"]}
+    end
+  end
+
+  @doc """
+  Caption tracks on one of the channel's videos.
+  """
+  @spec youtube_captions(Client.t(), String.t(), String.t()) ::
+          {:ok, [YouTubeCaptionTrack.t()]} | {:error, FoPost.Error.t()}
+  def youtube_captions(client, id, video_id) do
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/youtube/videos/#{video_id}/captions") do
+      {:ok, Model.list(YouTubeCaptionTrack, data)}
+    end
+  end
+
+  @doc """
+  Uploads a caption track.
+
+  Options: `:language` (a BCP-47 tag) and `:body` (the subtitle file itself) are required;
+  `:name` and `:is_draft` are optional. YouTube reads SRT and WebVTT and works out which
+  from the bytes, so the format is not declared.
+  """
+  @spec upload_youtube_captions(Client.t(), String.t(), String.t(), keyword()) ::
+          {:ok, YouTubeCaptionTrack.t()} | {:error, FoPost.Error.t()}
+  def upload_youtube_captions(client, id, video_id, opts) do
+    body = Model.take_body(opts, [:language, :body, :name, :is_draft])
+
+    with {:ok, data} <-
+           Client.request(client, :post, path(id) <> "/youtube/videos/#{video_id}/captions",
+             json: body
+           ) do
+      {:ok, YouTubeCaptionTrack.from_map(data)}
+    end
+  end
+
+  @doc """
+  One caption track read back as text.
+  """
+  @spec youtube_transcript(Client.t(), String.t(), String.t()) ::
+          {:ok, YouTubeTranscript.t()} | {:error, FoPost.Error.t()}
+  def youtube_transcript(client, id, caption_id) do
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/youtube/captions/#{caption_id}") do
+      {:ok, YouTubeTranscript.from_map(data)}
+    end
+  end
+
+  @doc """
+  What a post from this Bluesky connection is written in when the post does not say.
+  """
+  @spec bluesky_languages(Client.t(), String.t()) ::
+          {:ok, BlueskyLanguages.t()} | {:error, FoPost.Error.t()}
+  def bluesky_languages(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/bluesky/languages") do
+      {:ok, BlueskyLanguages.from_map(data)}
+    end
+  end
+
+  @doc """
+  Stores up to three BCP-47 tags. An empty list clears the default.
+  """
+  @spec set_bluesky_languages(Client.t(), String.t(), [String.t()]) ::
+          {:ok, BlueskyLanguages.t()} | {:error, FoPost.Error.t()}
+  def set_bluesky_languages(client, id, languages) when is_list(languages) do
+    with {:ok, data} <-
+           Client.request(client, :put, path(id) <> "/bluesky/languages",
+             json: %{"languages" => languages}
+           ) do
+      {:ok, BlueskyLanguages.from_map(data)}
+    end
+  end
+
+  @doc """
+  The switches TikTok enforces at publish time, which are changed in the TikTok app.
+  """
+  @spec tiktok_creator_info(Client.t(), String.t()) ::
+          {:ok, TikTokCreatorInfo.t()} | {:error, FoPost.Error.t()}
+  def tiktok_creator_info(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/tiktok/creator-info") do
+      {:ok, TikTokCreatorInfo.from_map(data)}
+    end
+  end
+
+  @doc """
+  TikTok's Commercial Music Library. `:limit` is 1 to 50 and defaults to 20.
+
+  Needs the Marketing API product on the TikTok app; without it the call answers a 403
+  naming what to enable rather than an empty list.
+  """
+  @spec tiktok_music(Client.t(), String.t(), String.t(), keyword()) ::
+          {:ok, [TikTokMusic.t()]} | {:error, FoPost.Error.t()}
+  def tiktok_music(client, id, query, opts \\ []) do
+    params = Keyword.put(Model.take_params(opts, [:limit]) |> Enum.to_list(), :q, query)
+
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/tiktok/music", params: params) do
+      {:ok, Model.list(TikTokMusic, data)}
+    end
+  end
+
+  @doc """
+  Places a post can be tagged with. Same TikTok product as the music library.
+  """
+  @spec tiktok_locations(Client.t(), String.t(), String.t(), keyword()) ::
+          {:ok, [TikTokPlace.t()]} | {:error, FoPost.Error.t()}
+  def tiktok_locations(client, id, query, opts \\ []) do
+    params = Keyword.put(Model.take_params(opts, [:limit]) |> Enum.to_list(), :q, query)
+
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/tiktok/locations", params: params) do
+      {:ok, Model.list(TikTokPlace, data)}
+    end
+  end
+
+  @doc """
+  Resolves a share link to one of this account's own videos, for repurposing. A link to
+  someone else's video answers 404.
+  """
+  @spec tiktok_video_lookup(Client.t(), String.t(), String.t()) ::
+          {:ok, TikTokVideoSource.t()} | {:error, FoPost.Error.t()}
+  def tiktok_video_lookup(client, id, url) do
+    body = %{"url" => url}
+
+    with {:ok, data} <-
+           Client.request(client, :post, path(id) <> "/tiktok/video-download", json: body) do
+      {:ok, TikTokVideoSource.from_map(data)}
+    end
+  end
+
+  @doc """
+  Tracks a Reel can carry. Options: `:q` and `:audio_type` (`"music"`, the default, or
+  `"original_sound"`). With no `:q` Instagram answers with what is trending.
+  """
+  @spec instagram_audio(Client.t(), String.t(), keyword()) ::
+          {:ok, [InstagramAudio.t()]} | {:error, FoPost.Error.t()}
+  def instagram_audio(client, id, opts \\ []) do
+    params = Model.take_params(opts, [:q, :audio_type])
+
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/instagram/audio", params: params) do
+      {:ok, Model.list(InstagramAudio, data)}
+    end
+  end
+
+  @doc """
+  How many posts are left before Instagram refuses the next one.
+  """
+  @spec instagram_publishing_limit(Client.t(), String.t()) ::
+          {:ok, InstagramPublishingLimit.t()} | {:error, FoPost.Error.t()}
+  def instagram_publishing_limit(client, id) do
+    with {:ok, data} <- Client.request(client, :get, path(id) <> "/instagram/publishing-limit") do
+      {:ok, InstagramPublishingLimit.from_map(data)}
+    end
+  end
+
+  @doc """
+  Stories still inside their 24 hours, posted through FoPost or not. Pass
+  `insights: true` to fetch each story's insights, at one extra call per story.
+  """
+  @spec instagram_stories(Client.t(), String.t(), keyword()) ::
+          {:ok, [InstagramStory.t()]} | {:error, FoPost.Error.t()}
+  def instagram_stories(client, id, opts \\ []) do
+    params = Model.take_params(opts, [:insights])
+
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/instagram/stories", params: params) do
+      {:ok, Model.list(InstagramStory, data)}
+    end
+  end
+
+  @doc """
+  The insight set for one story.
+  """
+  @spec instagram_story_insights(Client.t(), String.t(), String.t()) ::
+          {:ok, InstagramStoryInsights.t()} | {:error, FoPost.Error.t()}
+  def instagram_story_insights(client, id, story_id) do
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/instagram/stories/#{story_id}/insights") do
+      {:ok, InstagramStoryInsights.from_map(data)}
+    end
+  end
+
+  @doc """
+  Organizations a LinkedIn post can mention. People are not searchable: LinkedIn has no
+  public person search, so a member mention needs a URN you already hold.
+  """
+  @spec linkedin_mentions(Client.t(), String.t(), String.t()) ::
+          {:ok, [LinkedInMention.t()]} | {:error, FoPost.Error.t()}
+  def linkedin_mentions(client, id, query) do
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/linkedin/mentions", params: [q: query]) do
+      {:ok, Model.list(LinkedInMention, data)}
+    end
   end
 
   @doc "Same as `list/2`, but raises `FoPost.Error`."
