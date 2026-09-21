@@ -240,6 +240,20 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
+`FoPost.Accounts.platform_metrics/2` reads the numbers only an account's own network
+reports, in its own vocabulary — ad-break earnings, story taps, a retention curve, the
+search terms behind a listing. A network whose metric access has not been granted yet
+answers `503`:
+
+```elixir
+{:ok, metrics} = FoPost.Accounts.platform_metrics(client, account.id)
+
+for row <- metrics.account.metrics do
+  IO.puts("#{row.label}: #{inspect(row.value)}")
+end
+```
+
+## Inbox and ads
 
 `FoPost.Inbox` reads comments, mentions, and direct messages on connected accounts and
 replies as the account (scope `inbox`). `FoPost.Contacts` is the people behind that

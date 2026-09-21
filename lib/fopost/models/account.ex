@@ -785,3 +785,96 @@ defmodule FoPost.DiscordAck do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.PlatformMetricRow do
+  @moduledoc """
+  One metric a network reports under its own name.
+
+  `:key` is the platform's own name and is stable; `:label` is ours and may be reworded, so
+  match on the key. `:value` is a number for every `:kind` but `"series"`, which is a list of
+  points.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:key, :label, :kind, :value, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      key: fields["key"],
+      label: fields["label"],
+      kind: fields["kind"] || "count",
+      value: fields["value"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+
+  @doc """
+  The value as a number, or `nil` for a series or a non-numeric answer.
+  """
+  def number(%__MODULE__{value: value}) when is_number(value), do: value
+  def number(%__MODULE__{}), do: nil
+end
+
+defmodule FoPost.PlatformMetricsBlock do
+  @moduledoc """
+  One side of a per-network metric set: the account itself, or its newest measured post.
+  `:external_post_id` is `nil` on the account side.
+  """
+
+  alias FoPost.Model
+  alias FoPost.PlatformMetricRow
+
+  defstruct [:fetched_at, :external_post_id, metrics: [], raw: nil]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      fetched_at: fields["fetched_at"],
+      external_post_id: fields["external_post_id"],
+      metrics: Model.list(PlatformMetricRow, fields["metrics"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: %__MODULE__{}
+end
+
+defmodule FoPost.AccountPlatformMetrics do
+  @moduledoc """
+  What only this network reports, in its own vocabulary: ad-break earnings, story taps, a
+  retention curve, the search terms behind a listing.
+  """
+
+  alias FoPost.Model
+  alias FoPost.PlatformMetricsBlock
+
+  defstruct [:platform, :account, :post, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      platform: fields["platform"],
+      account: PlatformMetricsBlock.from_map(fields["account"]),
+      post: PlatformMetricsBlock.from_map(fields["post"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
