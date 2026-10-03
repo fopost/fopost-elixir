@@ -1531,10 +1531,6 @@ defmodule FoPost.Ads do
     end
   end
 
-  defp join_countries(nil), do: nil
-  defp join_countries(codes) when is_list(codes), do: Enum.join(codes, ",")
-  defp join_countries(codes), do: codes
-
   defp comment_path(id, suffix \\ nil) do
     base = "/ads/comments/" <> URI.encode_www_form(id)
     if suffix, do: base <> "/" <> suffix, else: base
