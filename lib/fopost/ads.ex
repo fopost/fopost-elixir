@@ -1094,11 +1094,11 @@ defmodule FoPost.Ads do
   Required: `:workspace_id`, `:connection_id`.
   """
   @spec delete_conversion_rule(Client.t(), String.t(), keyword()) ::
-          :ok | {:error, FoPost.Error.t()}
+          {:ok, Message.t()} | {:error, FoPost.Error.t()}
   def delete_conversion_rule(client, id, opts) do
-    with {:ok, _data} <-
+    with {:ok, data} <-
            Client.request(client, :delete, conversion_rule_path(id), params: meta_params(opts)) do
-      :ok
+      {:ok, Message.from_map(data)}
     end
   end
 
