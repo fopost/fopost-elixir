@@ -234,14 +234,82 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 `FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.AccountGroups` ·
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
-`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate`
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
+`FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
+`FoPost.Validate` · `FoPost.Activity`
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
+
+## Inbox, contacts, broadcasts and ads
+`FoPost.Accounts.platform_metrics/2` reads the numbers only an account's own network
+reports, in its own vocabulary — ad-break earnings, story taps, a retention curve, the
+search terms behind a listing. A network whose metric access has not been granted yet
+answers `503`:
+
+```elixir
+{:ok, metrics} = FoPost.Accounts.platform_metrics(client, account.id)
+
+for row <- metrics.account.metrics do
+  IO.puts("#{row.label}: #{inspect(row.value)}")
+end
+```
 
 ## Inbox and ads
 
 `FoPost.Inbox` reads comments, mentions, and direct messages on connected accounts and
-replies as the account (scope `inbox`). `FoPost.Ads` boosts posts, creates ads, and
-manages campaigns, ad sets, creatives, audiences, insights, lead forms, and the leads
-feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
+replies as the account (scope `inbox`). `FoPost.Contacts` is the people behind that
+inbox: one row per human however many handles they write from, the custom fields the
+workspace keeps about them, and a CSV import (scope `inbox`, except
+`conversation_analytics/2`, which answers counts per thread under `analytics`).
+
+`FoPost.Broadcasts` sends one message into every conversation the workspace already has
+with a segment of those contacts, and `FoPost.Sequences` walks a series of them on a
+delay. Neither opens a cold DM. Nothing is sent into a closed messaging window: Messenger
+and Instagram take a business-initiated message only within 24 hours of the contact's last
+one, so recipients outside it come back skipped with `"window_closed"` rather than
+attempted, and the number sent is often lower than the audience. Telegram, Slack, Bluesky
+and Reddit have no window. Both read under `inbox`; `send/2`, `cancel/2`, `enroll/3` and
+`unenroll/3` need `publish` as well.
+
+```elixir
+{:ok, broadcast} =
+  FoPost.Broadcasts.create(client,
+    workspace_id: workspace_id,
+    account_id: account_id,
+    name: "September check-in",
+    text: "New colours just landed. Want a look?",
+    audience: %{"platforms" => ["instagram"]}
+  )
+
+# `recipients` is how many contacts matched, not how many will be messaged.
+{:ok, sent} = FoPost.Broadcasts.send(client, broadcast.id)
+
+# Who was skipped, and why.
+{:ok, page} = FoPost.Broadcasts.recipients(client, broadcast.id, status: "skipped")
+Enum.each(page.data, &IO.puts("#{&1.display_name} — #{&1.skip_reason}"))
+
+{:ok, sequence} =
+  FoPost.Sequences.create(client,
+    workspace_id: workspace_id,
+    account_id: account_id,
+    name: "Welcome",
+    steps: [
+      %{"delay_hours" => 0, "text" => "Thanks for the follow"},
+      %{"delay_hours" => 48, "text" => "Here is what people usually ask us first."}
+    ]
+  )
+
+{:ok, _} = FoPost.Sequences.enroll(client, sequence.id, contact_ids: [contact_id])
+{:ok, _} = FoPost.Sequences.unenroll(client, sequence.id, [contact_id])
+```
+
+`FoPost.Knowledge` holds what the workspace has
+told FoPost about itself — FAQs, notes, your own pages and plain-text files — and
+`search/3` returns the passages that ground a drafted reply in your own answers rather
+than an invented one (same `inbox` scope).
+`FoPost.Ads` boosts posts, creates ads, and
+manages campaigns, ad sets, creatives, product catalogs, audiences, reach-and-frequency
+predictions, the public ad archive, ad account settings, insights, lead forms, and the
+leads feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
 `bulk_set_status/2`, and the campaign, ad set, and network ad writes spend money and also
 need `publish`). A boost, campaign, ad set, or ad starts paused unless `paused: false`.
 Campaign-tree objects are addressed by Meta id and read live, so those calls take
@@ -282,6 +350,32 @@ meta = [workspace_id: workspace.id, connection_id: connection.id]
 {:ok, next} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, cursor: page.next_cursor)
 ```
 
+## Google Business Profile
+
+`FoPost.GoogleBusiness` manages a connected Business Profile location: the profile,
+attributes, food menus, services, photos, action links, verification and performance.
+
+```elixir
+{:ok, location} = FoPost.GoogleBusiness.get_location(client, account_id)
+
+{:ok, _} =
+  FoPost.GoogleBusiness.update_location(client, account_id, %{"title" => "Corner Bakery"})
+
+# Photos come from your media library, JPEG or PNG.
+{:ok, _} = FoPost.GoogleBusiness.add_media(client, account_id, media_id: media_id,
+                                            category: "INTERIOR")
+
+{:ok, metrics} =
+  FoPost.GoogleBusiness.get_performance(client, account_id,
+    start_date: "2026-09-01",
+    end_date: "2026-09-30"
+  )
+```
+
+Responses relay Google's own shape as plain maps. Reads need the `accounts` scope, writes
+`publish` as well. Every call answers a 503 `configuration_error` until Google grants the
+deployment Business Profile API access.
+
 ## Validating
 
 `FoPost.Validate` checks content against platform rules without creating a post; nothing
@@ -299,10 +393,44 @@ hd(result.platforms).limit
 result.ok
 ```
 
+## Activity
+
+`FoPost.Activity.list/2` reads what happened in a workspace, newest first.
+
+```elixir
+{:ok, page} = FoPost.Activity.list(client, workspace_id: workspace_id)
+Enum.each(page.data, &IO.puts("#{&1.actor.name}: #{&1.summary}"))
+page.next_cursor
+```
+
+`kind: "security"` is the audit log: members joining, leaving or changing role and
+access, and changes to two-step verification, passkeys, single sign-on and
+signed-in devices. Those rows are append-only and never expire.
+
+```elixir
+{:ok, audit} = FoPost.Activity.list(client, workspace_id: workspace_id, kind: "security")
+```
+
 ## Examples
 
 [`examples/create_post.exs`](examples/create_post.exs) creates a draft, preflights it, and
 publishes it.
+
+## Chatbots and the inbox
+
+The [chat adapter](https://fopost.com/docs/sdks/chat-adapter) turns the FoPost inbox into one send/receive channel for a chatbot
+framework. It ships in the TypeScript and Python SDKs. There is no dedicated adapter here and no
+API change behind it, so the same loop is three pieces with this client:
+
+1. **Verify** the `inbox.message_received` webhook. The payload is ids only, on purpose, so
+   nothing a customer wrote sits in your logs. The [signing scheme](https://fopost.com/docs/webhooks/verification)
+   is HMAC-SHA256 over `{timestamp}.{body}`, refused past a five minute tolerance.
+2. **Read** the item back with `FoPost.Inbox.list(client, type: "dm", account_id: account_id)`, filtered to the payload's
+   `accountId` and matched on its `itemId`.
+3. **Answer** with `FoPost.Inbox.reply(client, item.id, text: text)`, or open a thread with
+   `FoPost.Inbox.start_conversation(client, …)`.
+
+Reading needs the `inbox` scope; answering needs `publish` as well.
 
 ## Development
 
@@ -325,3 +453,32 @@ Questions and bug reports go to
 ## License
 
 MIT © Porter Bridge, LLC. See [LICENSE](LICENSE).
+
+### Google Ads
+
+Campaigns, ad groups, ads, audiences, and insights are on `FoPost.Ads` and dispatch by
+connection. What only Google has is in `FoPost.GoogleAds`:
+
+```elixir
+{:ok, keywords} =
+  FoPost.GoogleAds.keywords(client,
+    connection_id: connection.id,
+    customer_id: "1234567890"
+  )
+
+{:ok, id} =
+  FoPost.GoogleAds.create_keyword(client,
+    workspace_id: workspace.id,
+    connection_id: connection.id,
+    customer_id: "1234567890",
+    ad_group_id: "1234567890~adGroup~77",
+    text: "running shoes",
+    match_type: "EXACT"
+  )
+```
+
+Also `keyword_ideas/2`, `keyword_metrics/2`, `search_terms/2`, `bid_strategies/2`,
+`ad_schedule/2` and `set_ad_schedule/2`, the negative keyword lists, `assets/2` and
+`asset_groups/2`, `local_services_leads/2`, the conversion functions, and `query/2` for a
+raw read-only GAQL SELECT. Changes need the `publish` scope as well as `ads`;
+`:customer_id` has to name an account the connection's grant reaches.
