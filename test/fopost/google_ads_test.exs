@@ -118,6 +118,46 @@ defmodule FoPost.GoogleAdsTest do
              )
   end
 
+  test "recommendations join the types filter", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/ads/google/recommendations", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params["types"] == "KEYWORD,TARGET_CPA_OPT_IN"
+
+      TestSupport.json(conn, 200, %{
+        "data" => [
+          %{
+            "id" => "customers/1234567890/recommendations/ABC~1",
+            "type" => "KEYWORD",
+            "campaignId" => "1234567890~campaign~55",
+            "dismissed" => false,
+            "impact" => %{"baseClicks" => 10, "potentialClicks" => 25}
+          }
+        ]
+      })
+    end)
+
+    assert {:ok, [recommendation]} =
+             GoogleAds.recommendations(
+               TestSupport.client(bypass),
+               @scope ++ [types: ["KEYWORD", "TARGET_CPA_OPT_IN"]]
+             )
+
+    assert recommendation.type == "KEYWORD"
+    assert recommendation.impact.potential_clicks == 25
+  end
+
+  test "apply_recommendations sends the ids", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/ads/google/recommendations/apply", fn conn ->
+      TestSupport.json(conn, 200, %{"data" => %{"applied" => 1}})
+    end)
+
+    assert {:ok, 1} =
+             GoogleAds.apply_recommendations(
+               TestSupport.client(bypass),
+               @scope ++ [ids: ["customers/1234567890/recommendations/ABC~1"]]
+             )
+  end
+
   test "authorize_google has its own route", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/v1/ads/connections/google/authorize", fn conn ->
       TestSupport.json(conn, 200, %{"data" => %{"url" => "https://accounts.google.com/o/x"}})

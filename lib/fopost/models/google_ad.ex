@@ -361,3 +361,122 @@ defmodule FoPost.GoogleConversionAction do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.GoogleRecommendationImpact do
+  @moduledoc """
+  What Google projects applying a recommendation would change. A nil field is
+  one Google does not estimate for that recommendation.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :base_clicks,
+    :potential_clicks,
+    :base_cost_minor,
+    :potential_cost_minor,
+    :base_conversions,
+    :potential_conversions,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      base_clicks: fields["base_clicks"],
+      potential_clicks: fields["potential_clicks"],
+      base_cost_minor: fields["base_cost_minor"],
+      potential_cost_minor: fields["potential_cost_minor"],
+      base_conversions: fields["base_conversions"],
+      potential_conversions: fields["potential_conversions"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.GoogleRecommendation do
+  @moduledoc """
+  One of Google's own recommendations for the account.
+
+  `id` is the Google resource name rather than the `~` form other objects use,
+  because a recommendation is not an object you address again: it is what apply
+  and dismiss take.
+  """
+
+  alias FoPost.GoogleRecommendationImpact
+  alias FoPost.Model
+
+  defstruct [:id, :type, :campaign_id, :ad_group_id, :dismissed, :impact, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      type: fields["type"],
+      campaign_id: fields["campaign_id"],
+      ad_group_id: fields["ad_group_id"],
+      dismissed: fields["dismissed"] == true,
+      impact: GoogleRecommendationImpact.from_map(fields["impact"]),
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.GoogleOptimizationScoreCampaign do
+  @moduledoc """
+  One campaign's optimization score.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :name, :score, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      score: fields["score"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.GoogleOptimizationScore do
+  @moduledoc """
+  Google's estimate of how well the account is set up, from 0 to 1.
+  """
+
+  alias FoPost.GoogleOptimizationScoreCampaign
+  alias FoPost.Model
+
+  defstruct [:score, :weight, :campaigns, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      score: fields["score"],
+      weight: fields["weight"],
+      campaigns: Model.list(GoogleOptimizationScoreCampaign, fields["campaigns"] || []),
+      raw: data
+    }
+  end
+end
