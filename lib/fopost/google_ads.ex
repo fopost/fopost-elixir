@@ -32,6 +32,8 @@ defmodule FoPost.GoogleAds do
   alias FoPost.GoogleKeyword
   alias FoPost.GoogleKeywordIdea
   alias FoPost.GoogleLocalServicesLead
+  alias FoPost.GoogleOptimizationScore
+  alias FoPost.GoogleRecommendation
   alias FoPost.GoogleSearchTerm
   alias FoPost.GoogleSharedSet
   alias FoPost.Model
@@ -438,6 +440,63 @@ defmodule FoPost.GoogleAds do
     uploaded(client, "/ads/google/conversions/adjustments", body)
   end
 
+  # ── Recommendations ──
+
+  @doc """
+  Google's own read on what the account should change next. Optional: `:types`,
+  a list of recommendation types to narrow to.
+  """
+  @spec recommendations(Client.t(), keyword()) ::
+          {:ok, [GoogleRecommendation.t()]} | {:error, FoPost.Error.t()}
+  def recommendations(client, opts) do
+    params =
+      opts
+      |> Model.take_params(@scope_params)
+      |> put_types(Keyword.get(opts, :types))
+
+    with {:ok, data} <-
+           Client.request(client, :get, "/ads/google/recommendations", params: params) do
+      {:ok, Model.list(GoogleRecommendation, data)}
+    end
+  end
+
+  @doc """
+  The account's score and weight, and the score of each live campaign.
+  """
+  @spec optimization_score(Client.t(), keyword()) ::
+          {:ok, GoogleOptimizationScore.t()} | {:error, FoPost.Error.t()}
+  def optimization_score(client, opts) do
+    params = Model.take_params(opts, @scope_params)
+
+    with {:ok, data} <-
+           Client.request(client, :get, "/ads/google/optimization-score", params: params) do
+      {:ok, GoogleOptimizationScore.from_map(data)}
+    end
+  end
+
+  @doc """
+  Applies each one, which changes what the live account serves or bids, and
+  answers how many landed. Required: `:ids`. Needs `publish` as well as `ads`.
+  """
+  @spec apply_recommendations(Client.t(), keyword()) ::
+          {:ok, integer()} | {:error, FoPost.Error.t()}
+  def apply_recommendations(client, opts) do
+    body = Model.take_body(opts, @scope_body ++ [:ids])
+
+    counted(client, "/ads/google/recommendations/apply", body, "applied")
+  end
+
+  @doc """
+  Hides each one so Google stops surfacing it. Required: `:ids`. Needs `publish`.
+  """
+  @spec dismiss_recommendations(Client.t(), keyword()) ::
+          {:ok, integer()} | {:error, FoPost.Error.t()}
+  def dismiss_recommendations(client, opts) do
+    body = Model.take_body(opts, @scope_body ++ [:ids])
+
+    counted(client, "/ads/google/recommendations/dismiss", body, "dismissed")
+  end
+
   # ── GAQL ──
 
   @doc """
@@ -483,11 +542,17 @@ defmodule FoPost.GoogleAds do
     end
   end
 
-  defp uploaded(client, path, body) do
+  defp uploaded(client, path, body), do: counted(client, path, body, "uploaded")
+
+  defp counted(client, path, body, key) do
     with {:ok, data} <- Client.request(client, :post, path, json: body) do
-      {:ok, count(data, "uploaded")}
+      {:ok, count(data, key)}
     end
   end
+
+  defp put_types(params, nil), do: params
+  defp put_types(params, []), do: params
+  defp put_types(params, types), do: Keyword.put(params, :types, Enum.join(types, ","))
 
   # A delete carries the scope in its body, the way the API takes it.
   defp discard(client, path, opts) do
