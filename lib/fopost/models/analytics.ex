@@ -428,3 +428,500 @@ defmodule FoPost.Analytics.CollectSummary do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.Analytics.DecayBand do
+  @moduledoc """
+  One age band of the content decay report.
+
+  `:share_of_final` is `nil` when nothing in the band had earned anything yet, which is
+  not the same as zero.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :bucket,
+    :label,
+    :posts,
+    :avg_engagements,
+    :avg_impressions,
+    :share_of_final,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      bucket: fields["bucket"],
+      label: fields["label"],
+      posts: fields["posts"],
+      avg_engagements: fields["avg_engagements"],
+      avg_impressions: fields["avg_impressions"],
+      share_of_final: fields["share_of_final"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.ContentDecay do
+  @moduledoc """
+  How engagement accumulates as a post ages.
+
+  `:half_life_bucket` names the first band where the average post had passed half its
+  final engagement.
+  """
+
+  alias FoPost.Analytics.DecayBand
+  alias FoPost.Model
+
+  defstruct [:days, :posts_measured, :half_life_bucket, :raw, bands: []]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      days: fields["days"],
+      posts_measured: fields["posts_measured"],
+      half_life_bucket: fields["half_life_bucket"],
+      bands: Model.list(DecayBand, fields["bands"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.FrequencyWeek do
+  @moduledoc """
+  One week of posting. `:week_start` is the Monday, UTC, as `YYYY-MM-DD`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:week_start, :posts, :engagements, :avg_engagements_per_post, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      week_start: fields["week_start"],
+      posts: fields["posts"],
+      engagements: fields["engagements"],
+      avg_engagements_per_post: fields["avg_engagements_per_post"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.FrequencyBand do
+  @moduledoc """
+  The weeks that shared a cadence, folded together.
+
+  `:engagement_rate` is engagements over reach, impressions as the stand-in, and `nil`
+  with neither.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :band,
+    :label,
+    :weeks,
+    :posts,
+    :avg_posts_per_week,
+    :avg_engagements_per_post,
+    :engagement_rate,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      band: fields["band"],
+      label: fields["label"],
+      weeks: fields["weeks"],
+      posts: fields["posts"],
+      avg_posts_per_week: fields["avg_posts_per_week"],
+      avg_engagements_per_post: fields["avg_engagements_per_post"],
+      engagement_rate: fields["engagement_rate"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.PostingFrequency do
+  @moduledoc """
+  Weekly cadence set against what each cadence earned per post.
+
+  `:best` is the cadence that earned the most per post, and is `nil` without posts.
+  """
+
+  alias FoPost.Analytics.FrequencyBand
+  alias FoPost.Analytics.FrequencyWeek
+  alias FoPost.Model
+
+  defstruct [:days, :best, :raw, weeks: [], bands: []]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      days: fields["days"],
+      weeks: Model.list(FrequencyWeek, fields["weeks"]),
+      bands: Model.list(FrequencyBand, fields["bands"]),
+      best: FrequencyBand.from_map(fields["best"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.TimelineDelta do
+  @moduledoc """
+  What moved between one reading and the one before it.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:impressions, :reach, :engagements, :likes, :comments, :shares, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      impressions: fields["impressions"],
+      reach: fields["reach"],
+      engagements: fields["engagements"],
+      likes: fields["likes"],
+      comments: fields["comments"],
+      shares: fields["shares"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.TimelinePoint do
+  @moduledoc """
+  One reading of a post. `:age_minutes` is `nil` when the network never said when the
+  post went out.
+  """
+
+  alias FoPost.Analytics.TimelineDelta
+  alias FoPost.Model
+
+  defstruct [
+    :at,
+    :age_minutes,
+    :impressions,
+    :reach,
+    :engagements,
+    :likes,
+    :comments,
+    :shares,
+    :video_views,
+    :delta,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      at: Model.datetime(fields["at"]),
+      age_minutes: fields["age_minutes"],
+      impressions: fields["impressions"],
+      reach: fields["reach"],
+      engagements: fields["engagements"],
+      likes: fields["likes"],
+      comments: fields["comments"],
+      shares: fields["shares"],
+      video_views: fields["video_views"],
+      delta: TimelineDelta.from_map(fields["delta"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.TimelineDelivery do
+  @moduledoc """
+  One delivery's readings: the same post on two networks decays differently.
+  """
+
+  alias FoPost.Analytics.TimelinePoint
+  alias FoPost.Model
+
+  defstruct [
+    :account_id,
+    :platform,
+    :username,
+    :external_post_id,
+    :posted_at,
+    :raw,
+    points: []
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      account_id: fields["account_id"],
+      platform: fields["platform"],
+      username: fields["username"],
+      external_post_id: fields["external_post_id"],
+      posted_at: Model.datetime(fields["posted_at"]),
+      points: Model.list(TimelinePoint, fields["points"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.PostTimeline do
+  @moduledoc """
+  Every reading held for one post, one timeline per delivery.
+
+  `:post_id` is `nil` when the post was made natively on the network.
+  """
+
+  alias FoPost.Analytics.TimelineDelivery
+  alias FoPost.Model
+
+  defstruct [:post_id, :raw, deliveries: []]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      post_id: fields["post_id"],
+      deliveries: Model.list(TimelineDelivery, fields["deliveries"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.MetricChange do
+  @moduledoc """
+  One reading, as the changes feed reports it. `:post_id` is `nil` for a post made
+  natively on the network.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :account_id,
+    :platform,
+    :external_post_id,
+    :post_id,
+    :posted_at,
+    :fetched_at,
+    :impressions,
+    :reach,
+    :engagements,
+    :likes,
+    :comments,
+    :shares,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      account_id: fields["account_id"],
+      platform: fields["platform"],
+      external_post_id: fields["external_post_id"],
+      post_id: fields["post_id"],
+      posted_at: Model.datetime(fields["posted_at"]),
+      fetched_at: Model.datetime(fields["fetched_at"]),
+      impressions: fields["impressions"],
+      reach: fields["reach"],
+      engagements: fields["engagements"],
+      likes: fields["likes"],
+      comments: fields["comments"],
+      shares: fields["shares"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.MetricChangePage do
+  @moduledoc """
+  One page of readings. Feed `:cursor` back as the next `:since`; it is `nil` when
+  nothing changed.
+  """
+
+  alias FoPost.Analytics.MetricChange
+  alias FoPost.Model
+
+  defstruct [:since, :cursor, :has_more, :raw, changes: []]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      since: Model.datetime(fields["since"]),
+      cursor: Model.datetime(fields["cursor"]),
+      has_more: fields["has_more"],
+      changes: Model.list(MetricChange, fields["changes"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.CollectPostDelivery do
+  @moduledoc """
+  What the on-demand refresh did for one delivery. `:message` says why it did not happen.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :account_id,
+    :platform,
+    :external_post_id,
+    :collected,
+    :fetched_at,
+    :message,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      account_id: fields["account_id"],
+      platform: fields["platform"],
+      external_post_id: fields["external_post_id"],
+      collected: fields["collected"],
+      fetched_at: Model.datetime(fields["fetched_at"]),
+      message: fields["message"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.CollectPostResult do
+  @moduledoc """
+  What one post's refresh managed.
+  """
+
+  alias FoPost.Analytics.CollectPostDelivery
+  alias FoPost.Model
+
+  defstruct [:collected, :raw, deliveries: []]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      collected: fields["collected"],
+      deliveries: Model.list(CollectPostDelivery, fields["deliveries"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.Analytics.NativePost do
+  @moduledoc """
+  A post on the account that never went out through FoPost, with the freshest reading
+  held for it under `:metrics`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :external_post_id,
+    :text,
+    :permalink,
+    :thumbnail_url,
+    :media_type,
+    :posted_at,
+    :fetched_at,
+    :metrics,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      external_post_id: fields["external_post_id"],
+      text: fields["text"],
+      permalink: fields["permalink"],
+      thumbnail_url: fields["thumbnail_url"],
+      media_type: fields["media_type"],
+      posted_at: Model.datetime(fields["posted_at"]),
+      fetched_at: Model.datetime(fields["fetched_at"]),
+      metrics: Model.normalize(fields["metrics"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
