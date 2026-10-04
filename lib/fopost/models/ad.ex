@@ -1093,3 +1093,354 @@ defmodule FoPost.LeadPageSubscription do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.AdBusinessCenter do
+  @moduledoc """
+  A Business Center, or the network's equivalent grouping of ad accounts.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :name, :role, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      role: fields["role"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdIdentity do
+  @moduledoc """
+  The account an ad runs as. Meta calls it a Page, TikTok an identity; an
+  identity id is what every route calls a `page_id`. `type` is the network's
+  own identity kind, e.g. `CUSTOMIZED_USER`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :type, :name, :avatar_url, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      type: fields["type"],
+      name: fields["name"],
+      avatar_url: fields["avatar_url"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.SparkPost do
+  @moduledoc """
+  A post already live on the network, offered as the source of a Spark ad.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :identity_id, :caption, :thumbnail_url, :created_at, :views, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      identity_id: fields["identity_id"],
+      caption: fields["caption"],
+      thumbnail_url: fields["thumbnail_url"],
+      created_at: fields["created_at"],
+      views: fields["views"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdComment do
+  @moduledoc """
+  A comment on an ad, read live from the network and never stored.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :id,
+    :ad_id,
+    :text,
+    :author_name,
+    :author_avatar_url,
+    :created_at,
+    :likes,
+    :reply_count,
+    :hidden,
+    :parent_id,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      ad_id: fields["ad_id"],
+      text: fields["text"] || "",
+      author_name: fields["author_name"],
+      author_avatar_url: fields["author_avatar_url"],
+      created_at: fields["created_at"],
+      likes: fields["likes"] || 0,
+      reply_count: fields["reply_count"] || 0,
+      hidden: fields["hidden"] || false,
+      parent_id: fields["parent_id"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdCommentsPage do
+  @moduledoc """
+  One page of an ad's comments; pass `next_cursor` back as `:after`.
+  """
+
+  alias FoPost.AdComment
+  alias FoPost.Model
+
+  defstruct comments: [], next_cursor: nil, raw: nil
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      comments: Model.list(AdComment, fields["comments"] || []),
+      next_cursor: fields["next_cursor"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdTrackingMacro do
+  @moduledoc """
+  A token a network expands in a link's tracking parameters at delivery time.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:token, :description, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      token: fields["token"],
+      description: fields["description"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.AdProvider do
+  @moduledoc """
+  An ad network from the API's registry. `:configured` false cannot be connected yet.
+
+  `:capabilities` says what the network supports — campaigns, audiences, conversions,
+  forecasts, adLibrary and so on. `:targeting_facets` is what `FoPost.Ads.search_targeting/2`
+  accepts here.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :id,
+    :name,
+    :logo,
+    :configured,
+    :raw,
+    connect_methods: [],
+    capabilities: %{},
+    targeting_facets: [],
+    tracking_macros: []
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      logo: fields["logo"],
+      configured: fields["configured"],
+      connect_methods: fields["connect_methods"] || [],
+      capabilities: fields["capabilities"] || %{},
+      targeting_facets: fields["targeting_facets"] || [],
+      tracking_macros: Model.list(FoPost.AdTrackingMacro, fields["tracking_macros"]),
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.BidPricing do
+  @moduledoc """
+  What the auction costs, in minor units of the ad account currency.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :currency,
+    :suggested_bid_minor,
+    :min_bid_minor,
+    :max_bid_minor,
+    :daily_budget_floor_minor,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      currency: fields["currency"],
+      suggested_bid_minor: fields["suggested_bid_minor"],
+      min_bid_minor: fields["min_bid_minor"],
+      max_bid_minor: fields["max_bid_minor"],
+      daily_budget_floor_minor: fields["daily_budget_floor_minor"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.SupplyForecast do
+  @moduledoc """
+  What an audience would deliver at a budget, over the network's own window.
+  `:ready` is false while the network has no answer for that audience.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:currency, :impressions, :clicks, :spend_minor, :window_days, :ready, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      currency: fields["currency"],
+      impressions: fields["impressions"],
+      clicks: fields["clicks"],
+      spend_minor: fields["spend_minor"],
+      window_days: fields["window_days"],
+      ready: fields["ready"],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.ConversionRule do
+  @moduledoc """
+  How the network attributes a sale or a sign-up back to an ad set.
+  `:campaign_ids` are the ad sets the rule is attached to.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :id,
+    :name,
+    :type,
+    :attribution,
+    :post_click_window_days,
+    :view_through_window_days,
+    :value_minor,
+    :currency,
+    :enabled,
+    :created_at,
+    :raw,
+    campaign_ids: []
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      type: fields["type"],
+      attribution: fields["attribution"],
+      post_click_window_days: fields["post_click_window_days"],
+      view_through_window_days: fields["view_through_window_days"],
+      value_minor: fields["value_minor"],
+      currency: fields["currency"],
+      enabled: fields["enabled"],
+      created_at: fields["created_at"],
+      campaign_ids: fields["campaign_ids"] || [],
+      raw: data
+    }
+  end
+end
+
+defmodule FoPost.ConversionMetrics do
+  @moduledoc """
+  What a conversion rule recorded over a date range.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :conversions,
+    :post_click_conversions,
+    :view_through_conversions,
+    :value_minor,
+    :cost_per_conversion_minor,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      conversions: fields["conversions"],
+      post_click_conversions: fields["post_click_conversions"],
+      view_through_conversions: fields["view_through_conversions"],
+      value_minor: fields["value_minor"],
+      cost_per_conversion_minor: fields["cost_per_conversion_minor"],
+      raw: data
+    }
+  end
+end
