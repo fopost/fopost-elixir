@@ -52,7 +52,86 @@ defmodule FoPost.WebhooksTest do
     assert "post.published" in Webhooks.events()
     assert "delivery.delayed" in Webhooks.events()
     assert "account.health_changed" in Webhooks.events()
-    assert length(Webhooks.events()) == 7
+    assert "article.published" in Webhooks.events()
+    assert length(Webhooks.events()) == 8
+  end
+
+  describe "verify/4" do
+    @now 1_760_000_000
+    @article_body ~s({"event":"article.published","data":{"id":"art_1","title":"Plan","slug":"plan","bodyMarkdown":"# Plan","bodyHtml":"<h1>Plan</h1>","featuredImage":null,"images":[{"mediaId":"med_1","url":"https://cdn.test/a.jpg","alt":"A","position":0}],"tags":["planning"],"keyword":null,"wordCount":900,"publishedAt":"2026-10-10T09:00:00Z","publishedUrl":"https://yourbrand.com/blog/plan"},"timestamp":"2026-10-10T09:00:01Z"})
+
+    defp signed_headers(body, timestamp) do
+      [
+        {"x-fopost-signature", Webhooks.signature(body, @secret)},
+        {"x-fopost-timestamp", to_string(timestamp)},
+        {"x-fopost-signature-256", Webhooks.timestamped_signature(body, timestamp, @secret)},
+        {"x-fopost-event", "article.published"}
+      ]
+    end
+
+    test "a valid timestamped signature passes and decodes the article" do
+      headers = signed_headers(@article_body, @now - 10)
+
+      assert {:ok, event} = Webhooks.verify(@article_body, headers, @secret, now: @now)
+      assert event.event == "article.published"
+
+      article = FoPost.BlogArticlePublished.from_map(event.data)
+      assert article.slug == "plan"
+      assert article.published_url == "https://yourbrand.com/blog/plan"
+      assert [%FoPost.BlogArticleImage{position: 0}] = article.images
+      assert %DateTime{} = article.published_at
+    end
+
+    test "header names match case-insensitively and a map works too" do
+      headers =
+        @article_body
+        |> signed_headers(@now)
+        |> Map.new(fn {name, value} -> {String.upcase(name), value} end)
+
+      assert {:ok, _event} = Webhooks.verify(@article_body, headers, @secret, now: @now)
+    end
+
+    test "a tampered body fails" do
+      headers = signed_headers(@article_body, @now)
+      tampered = String.replace(@article_body, "art_1", "art_2")
+
+      assert Webhooks.verify(tampered, headers, @secret, now: @now) ==
+               {:error, :invalid_signature}
+    end
+
+    test "a stale timestamp fails even when its signature is right" do
+      headers = signed_headers(@article_body, @now - 301)
+
+      assert Webhooks.verify(@article_body, headers, @secret, now: @now) ==
+               {:error, :stale_timestamp}
+
+      assert {:ok, _event} =
+               Webhooks.verify(@article_body, signed_headers(@article_body, @now - 300), @secret,
+                 now: @now
+               )
+    end
+
+    test "a timestamp header without the timestamped signature never falls back" do
+      headers = [
+        {"x-fopost-signature", Webhooks.signature(@article_body, @secret)},
+        {"x-fopost-timestamp", to_string(@now)}
+      ]
+
+      assert Webhooks.verify(@article_body, headers, @secret, now: @now) ==
+               {:error, :invalid_signature}
+    end
+
+    test "the legacy body-only signature passes when no timestamp header is present" do
+      headers = [{"x-fopost-signature", Webhooks.signature(@article_body, @secret)}]
+
+      assert {:ok, event} = Webhooks.verify(@article_body, headers, @secret)
+      assert event.event == "article.published"
+
+      assert Webhooks.verify(@article_body, [{"x-fopost-signature", "sha256=00"}], @secret) ==
+               {:error, :invalid_signature}
+
+      assert Webhooks.verify(@article_body, [], @secret) == {:error, :invalid_signature}
+    end
   end
 
   test "create sends the workspace under the name the API expects" do
