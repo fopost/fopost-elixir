@@ -8,6 +8,25 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Media.limits/2` answers a `FoPost.UploadLimits`: the largest file the
+  account may upload by any route, the multipart ceiling per file, the files per call,
+  the accepted types, and the next tier.
+- `FoPost.Posts.create/2` and `update/3` take `:files`, a list of paths or maps of
+  `:filename`, `:mime_type`, and `:path` or `:data`. Files within the multipart ceiling
+  travel with the post in one request; larger ones are direct-uploaded first and attached
+  to the first content block.
+- `FoPost.Media.presign/2` takes `:folder_id`, `:origin`, `:brand_role`,
+  `:brand_voice_id`, and `:person_consent`, and `FoPost.PresignedUpload` carries
+  `:max_file_bytes`.
+- `FoPost.Media.upload_direct/6` streams a file given as `{:file, path}` instead of
+  holding it in memory, and takes the optional presign fields.
+- An oversize file is a `413` with `code: "file_too_large"`; `error.body` carries
+  `max_file_bytes`, `file_bytes`, and `upgrade_url`.
+
+### Changed
+
+- Direct uploads no longer stop at 50 MB; the ceiling is the account's `limits/2`.
+
 - `FoPost.InboxItem` carries `:moderation_status` (the platform's own state for
   a comment: `"published"`, `"held"`, `"spam"`, `"rejected"`), and
   `FoPost.InboxAccount` carries `:reconnect_required` for an account connected
