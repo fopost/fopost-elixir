@@ -158,16 +158,55 @@ FoPost.Posts.create(client,
 A file is a path, a `{filename, content}` tuple, or a map of `:filename`, `:content`, and
 optionally `:content_type`.
 
+A post can take its files directly. They are stored in the workspace library and attached
+to the first content block:
+
+```elixir
+FoPost.Posts.create(client,
+  workspace_id: workspace.id,
+  accounts: [account.id],
+  content: "Watch this",
+  files: ["clip.mp4", %{filename: "chart.png", mime_type: "image/png", data: bytes}]
+)
+
+FoPost.Posts.update(client, post.id, files: ["more.png"])
+```
+
+Files within the account's multipart ceiling travel with the post in one request; larger
+ones are direct-uploaded first and attached by URL. The SDK picks the route, so the result
+is the same either way.
+
+### Limits
+
+How large a file the account may upload grows with its connected accounts, or with the
+Large Uploads add-on. `FoPost.Media.limits/2` reports the current ceilings:
+
+```elixir
+{:ok, limits} = FoPost.Media.limits(client, workspace.id)
+limits.max_file_bytes            # the largest file by any route
+limits.multipart_max_file_bytes  # the most one file may carry in a multipart request
+limits.next_tier                 # %{up_to_accounts: 7, max_file_bytes: 419_430_400} or nil
+```
+
+A file over the limit is refused with a `413` whose body carries the ceiling:
+
+```elixir
+{:error, %FoPost.Error{status: 413, code: "file_too_large"} = error} = result
+error.body["max_file_bytes"]
+error.upgrade_url
+```
+
 A direct upload sends the bytes to a presigned URL instead of through the API, then files
-them in the library:
+them in the library. Pass `{:file, path}` to stream the file from disk:
 
 ```elixir
 {:ok, asset} =
-  FoPost.Media.upload_direct(client, workspace.id, "chart.png", "image/png", bytes)
+  FoPost.Media.upload_direct(client, workspace.id, "clip.mp4", "video/mp4", {:file, path})
 ```
 
 `FoPost.Media.presign/2` and `FoPost.Media.complete/2` are the two steps it wraps, for a
-client that `PUT`s the bytes itself.
+client that `PUT`s the bytes itself. `presign/2` also takes `:folder_id`, `:origin`,
+`:brand_role`, `:brand_voice_id`, and `:person_consent`.
 
 ## Webhooks
 

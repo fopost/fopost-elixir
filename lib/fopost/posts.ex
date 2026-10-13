@@ -25,6 +25,18 @@ defmodule FoPost.Posts do
 
   `:accounts` takes account ids, `FoPost.Account` structs, or maps carrying an `id`.
 
+  `:files` attaches up to five files to the first block, each a path or a map of
+  `:filename`, `:mime_type`, and `:path` or `:data`. They are stored in the workspace
+  library on the way. Files within the account's multipart ceiling travel with the post;
+  larger ones go through a direct upload first, and either way the result is the same.
+
+      FoPost.Posts.create(client,
+        workspace_id: workspace.id,
+        accounts: [account.id],
+        content: "Watch this",
+        files: ["clip.mp4"]
+      )
+
   `:status` is `"draft"` or `"scheduled"`; a scheduled post needs `:schedule_at`, which
   accepts a `DateTime`, a `NaiveDateTime`, or an ISO 8601 string. To send something out
   now, create it and call `publish/3` — publishing answers when delivery is queued, not
@@ -38,6 +50,8 @@ defmodule FoPost.Posts do
   alias FoPost.Client
   alias FoPost.Content
   alias FoPost.Delivery
+  alias FoPost.Files
+  alias FoPost.Media
   alias FoPost.Message
   alias FoPost.Model
   alias FoPost.Page
@@ -50,6 +64,7 @@ defmodule FoPost.Posts do
   alias FoPost.Result
 
   @default_per_page 30
+  @default_multipart_max_file_bytes 104_857_600
 
   @list_params [
     :page,
@@ -144,7 +159,7 @@ defmodule FoPost.Posts do
   `:schedule_at`, `:content_type`, `:artifact_type`, `:labels`, `:title`,
   `:internal_title`, `:summary`, `:auto_plug`, `:auto_plug_content`, `:settings`,
   `:repeatable`, `:repeatable_times`, `:repeatable_gap`, `:repeatable_gap_unit`,
-  `:source_ids`, `:companion_of`.
+  `:source_ids`, `:companion_of`, `:files`.
   """
   @spec create(Client.t(), keyword()) :: {:ok, Post.t()} | {:error, FoPost.Error.t()}
   def create(client, opts) do
@@ -157,7 +172,11 @@ defmodule FoPost.Posts do
       |> Model.put_present("account_group_id", opts[:account_group_id])
       |> put_schedule_at(opts)
 
-    with {:ok, data} <- Client.request(client, :post, "/posts", json: body) do
+    files = describe_files(opts)
+    route = route(client, files, opts)
+
+    with {:ok, data} <-
+           send_post(client, :post, "/posts", body, files, body["workspace_id"], route) do
       {:ok, Post.from_map(data)}
     end
   end
@@ -166,7 +185,7 @@ defmodule FoPost.Posts do
   Edits a post that has not been published.
 
   Only the keys you pass are sent, so this stays a partial update. Passing a key as `nil`
-  sends null, which is how a field is cleared.
+  sends null, which is how a field is cleared. `:files` adds to the first block.
   """
   @spec update(Client.t(), String.t(), keyword()) :: {:ok, Post.t()} | {:error, FoPost.Error.t()}
   def update(client, id, opts) do
@@ -177,7 +196,11 @@ defmodule FoPost.Posts do
       |> put_accounts(opts)
       |> put_schedule_at(opts)
 
-    with {:ok, data} <- Client.request(client, :put, path(id), json: body) do
+    files = describe_files(opts)
+    route = route(client, files, opts)
+
+    with {:ok, body, workspace_id} <- fill_for_direct(client, id, body, opts, route),
+         {:ok, data} <- send_post(client, :put, path(id), body, files, workspace_id, route) do
       {:ok, Post.from_map(data)}
     end
   end
@@ -482,6 +505,89 @@ defmodule FoPost.Posts do
 
   defp csv_file(%{} = file) do
     {Map.get(file, :filename) || "posts.csv", Map.fetch!(file, :content)}
+  end
+
+  defp describe_files(opts) do
+    opts |> Keyword.get(:files) |> List.wrap() |> Enum.map(&Files.describe/1)
+  end
+
+  # One limits call decides the route; an unreachable answer falls back to the default ceiling.
+  defp route(_client, [], _opts), do: :json
+
+  defp route(client, files, opts) do
+    ceiling =
+      case Media.limits(client, Keyword.get(opts, :workspace_id)) do
+        {:ok, %{multipart_max_file_bytes: bytes}} when is_integer(bytes) -> bytes
+        _other -> @default_multipart_max_file_bytes
+      end
+
+    if Enum.all?(files, &(&1.size <= ceiling)), do: :multipart, else: :direct
+  end
+
+  defp send_post(client, method, path, body, _files, _workspace_id, :json) do
+    Client.request(client, method, path, json: body)
+  end
+
+  defp send_post(client, method, path, body, files, _workspace_id, :multipart) do
+    form = [{:post, Jason.encode!(body)} | Enum.map(files, &{:files, Files.part(&1)})]
+
+    Client.request(client, method, path, form_multipart: form)
+  end
+
+  defp send_post(client, method, path, body, files, workspace_id, :direct) do
+    with {:ok, items} <- upload_all(client, workspace_id, files) do
+      Client.request(client, method, path, json: attach(body, items))
+    end
+  end
+
+  # The direct route on an update needs the post's content to append to and its workspace
+  # to upload into, unless the caller supplied both.
+  defp fill_for_direct(client, id, body, opts, :direct) do
+    workspace_id = Keyword.get(opts, :workspace_id)
+
+    if Map.has_key?(body, "content") and workspace_id do
+      {:ok, body, workspace_id}
+    else
+      with {:ok, post} <- get(client, id) do
+        body = Map.put_new(body, "content", Content.normalize(post.content))
+
+        {:ok, body, workspace_id || post.workspace_id}
+      end
+    end
+  end
+
+  defp fill_for_direct(_client, _id, body, _opts, _route), do: {:ok, body, nil}
+
+  defp upload_all(client, workspace_id, files) do
+    Enum.reduce_while(files, {:ok, []}, fn file, {:ok, items} ->
+      case Media.upload_direct(client, workspace_id, file.filename, file.mime_type, source(file)) do
+        {:ok, asset} -> {:cont, {:ok, items ++ [media_item(asset, file)]}}
+        {:error, error} -> {:halt, {:error, error}}
+      end
+    end)
+  end
+
+  defp source(%{path: path}) when is_binary(path), do: {:file, path}
+  defp source(%{data: data}), do: data
+
+  defp media_item(asset, file) do
+    %{
+      "type" => asset.type || Files.media_type(file.mime_type),
+      "name" => asset.name || file.filename,
+      "url" => asset.url,
+      "size" => asset.size || file.size
+    }
+  end
+
+  defp attach(body, items) do
+    case Map.get(body, "content") do
+      [first | rest] -> Map.put(body, "content", [append_media(first, items) | rest])
+      _other -> Map.put(body, "content", [%{"text" => "", "media" => items}])
+    end
+  end
+
+  defp append_media(block, items) do
+    Map.update(block, "media", items, &(List.wrap(&1) ++ items))
   end
 
   defp put_content(body, opts) do
