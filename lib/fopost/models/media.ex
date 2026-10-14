@@ -71,7 +71,7 @@ defmodule FoPost.PresignedUpload do
 
   alias FoPost.Model
 
-  defstruct [:upload_id, :upload_url, :method, :headers, :expires_at, :raw]
+  defstruct [:upload_id, :upload_url, :method, :headers, :expires_at, :max_file_bytes, :raw]
 
   @type t :: %__MODULE__{}
 
@@ -85,9 +85,66 @@ defmodule FoPost.PresignedUpload do
       method: fields["method"],
       headers: fields["headers"] || %{},
       expires_at: Model.datetime(fields["expires_at"]),
+      max_file_bytes: fields["max_file_bytes"],
       raw: data
     }
   end
 
   def from_map(_data), do: nil
+end
+
+defmodule FoPost.UploadLimits do
+  @moduledoc """
+  What the account may upload, from `FoPost.Media.limits/2`.
+
+  `:max_file_bytes` is the largest file any route accepts; it grows with the number of
+  connected accounts (`:next_tier` says when) or with the Large Uploads add-on.
+  `:multipart_max_file_bytes` is the most one file may carry in a multipart request, so
+  anything bigger goes through a direct upload.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :max_file_bytes,
+    :source,
+    :connected_accounts,
+    :large_uploads_enabled,
+    :next_tier,
+    :multipart_max_file_bytes,
+    :max_files_per_upload,
+    :direct_upload_available,
+    :raw,
+    allowed_types: []
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      max_file_bytes: fields["max_file_bytes"],
+      source: fields["source"],
+      connected_accounts: fields["connected_accounts"],
+      large_uploads_enabled: fields["large_uploads_enabled"],
+      next_tier: next_tier(fields["next_tier"]),
+      multipart_max_file_bytes: fields["multipart_max_file_bytes"],
+      max_files_per_upload: fields["max_files_per_upload"],
+      direct_upload_available: fields["direct_upload_available"],
+      allowed_types: fields["allowed_types"] || [],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+
+  defp next_tier(tier) when is_map(tier) do
+    fields = Model.normalize(tier)
+
+    %{up_to_accounts: fields["up_to_accounts"], max_file_bytes: fields["max_file_bytes"]}
+  end
+
+  defp next_tier(_tier), do: nil
 end

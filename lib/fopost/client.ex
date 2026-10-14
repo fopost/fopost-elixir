@@ -112,11 +112,11 @@ defmodule FoPost.Client do
     |> handle(unwrap?)
   end
 
-  # Sends raw bytes to a presigned URL: absolute, with only the headers the API issued.
+  # Sends raw bytes (or a stream of them) to a presigned URL with only the headers given.
   @doc false
-  @spec put_raw(t(), String.t(), map() | keyword(), binary()) ::
+  @spec put_raw(t(), String.t(), map() | keyword(), binary() | Enumerable.t()) ::
           {:ok, term()} | {:error, Error.t()}
-  def put_raw(%__MODULE__{} = client, url, headers, body) when is_binary(body) do
+  def put_raw(%__MODULE__{} = client, url, headers, body) do
     client
     |> build(:put, url, Enum.to_list(headers), body: body)
     |> Req.request()
