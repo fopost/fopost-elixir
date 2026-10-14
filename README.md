@@ -210,22 +210,24 @@ client that `PUT`s the bytes itself. `presign/2` also takes `:folder_id`, `:orig
 
 ## Webhooks
 
-A delivery carries `X-FoPost-Signature` (`sha256=<hex>`), `X-FoPost-Event`, and
-`X-FoPost-Delivery`. Verify against the **raw** body, before any JSON decoding:
+A delivery carries `X-FoPost-Signature` (`sha256=<hex>` over the body),
+`X-FoPost-Timestamp`, `X-FoPost-Signature-256` (`sha256=<hex>` over
+`"<timestamp>.<body>"`), `X-FoPost-Event`, and `X-FoPost-Delivery`. Verify against the
+**raw** body, before any JSON decoding:
 
 ```elixir
 {:ok, raw, conn} = Plug.Conn.read_body(conn)
-[signature] = Plug.Conn.get_req_header(conn, "x-fopost-signature")
 
-case FoPost.Webhooks.verify_and_parse(raw, signature, secret) do
+case FoPost.Webhooks.verify(raw, conn.req_headers, secret) do
   {:ok, event} -> handle(event)
-  {:error, :invalid_signature} -> Plug.Conn.send_resp(conn, 401, "")
   {:error, :invalid_payload} -> Plug.Conn.send_resp(conn, 400, "")
+  {:error, _reason} -> Plug.Conn.send_resp(conn, 401, "")
 end
 ```
 
-The comparison is constant time. No timestamp is mixed into the signature, so there is no
-replay window to enforce — deduplicate on `X-FoPost-Delivery` if you need it.
+`verify/4` prefers the timestamped signature and rejects one more than 300 seconds old
+(`:tolerance` changes that); it falls back to the plain body signature only when no
+timestamp header arrived. Every comparison is constant time.
 
 ## Retries
 
@@ -275,7 +277,7 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
 `FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
-`FoPost.Validate` · `FoPost.Activity`
+`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog`
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
@@ -414,6 +416,40 @@ attributes, food menus, services, photos, action links, verification and perform
 Responses relay Google's own shape as plain maps. Reads need the `accounts` scope, writes
 `publish` as well. Every call answers a 503 `configuration_error` until Google grants the
 deployment Business Profile API access.
+
+## Blog
+
+`FoPost.Blog` plans keywords, writes articles and publishes them to a target: the product
+blog, a connected account, or your own website. A post goes to a social network; an
+article goes to a website. Requesting an article spends AI credits (scope `ai`) and comes
+back `queued`; poll for the draft:
+
+```elixir
+{:ok, article} =
+  FoPost.Blog.request_article(client, workspace.id,
+    keyword: "social media calendar",
+    instructions: "Lead with the calendar view."
+  )
+
+{:ok, draft} = FoPost.Blog.get_article(client, workspace.id, article.id)
+{:ok, _article} = FoPost.Blog.publish_article(client, workspace.id, article.id)
+```
+
+A website target receives each published article as a signed request, with the secret
+`FoPost.Blog.update_settings/3` returns once when `:website_url` is first set. Verify it
+like any other delivery and read the payload as `FoPost.BlogArticlePublished`:
+
+```elixir
+{:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+with {:ok, %{event: "article.published"} = event} <-
+       FoPost.Webhooks.verify(raw, conn.req_headers, website_secret) do
+  article = FoPost.BlogArticlePublished.from_map(event.data)
+  store(article.slug, article.body_html, article.images)
+end
+```
+
+Image URLs in the payload stay fetchable for six hours, so store your own copy.
 
 ## Analytics
 

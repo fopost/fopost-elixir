@@ -43,6 +43,18 @@ defmodule FoPost.Model do
 
   def datetime(_value), do: nil
 
+  def date(nil), do: nil
+  def date(%Date{} = value), do: value
+
+  def date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      {:error, _reason} -> nil
+    end
+  end
+
+  def date(_value), do: nil
+
   def to_iso8601(nil), do: nil
   def to_iso8601(%DateTime{} = value), do: DateTime.to_iso8601(value)
   def to_iso8601(%NaiveDateTime{} = value), do: NaiveDateTime.to_iso8601(value) <> "Z"
@@ -98,11 +110,11 @@ defmodule FoPost.Model do
   defp naive_datetime(value) do
     case NaiveDateTime.from_iso8601(value) do
       {:ok, naive} -> DateTime.from_naive!(naive, "Etc/UTC")
-      {:error, _reason} -> date(value)
+      {:error, _reason} -> midnight(value)
     end
   end
 
-  defp date(value) do
+  defp midnight(value) do
     case Date.from_iso8601(value) do
       {:ok, date} -> DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
       {:error, _reason} -> nil

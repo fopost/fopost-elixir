@@ -22,11 +22,19 @@ All notable changes to this project are documented in this file. The format foll
   holding it in memory, and takes the optional presign fields.
 - An oversize file is a `413` with `code: "file_too_large"`; `error.body` carries
   `max_file_bytes`, `file_bytes`, and `upgrade_url`.
-
-### Changed
-
-- Direct uploads no longer stop at 50 MB; the ceiling is the account's `limits/2`.
-
+- `FoPost.Blog`, articles for a website rather than posts for a network: `settings/2`,
+  `update_settings/3`, `rotate_website_secret/2`, `test_website/2`, `list_keywords/3`,
+  `plan_keywords/3`, `add_keyword/3`, `update_keyword/4`, `delete_keyword/3`,
+  `list_articles/3`, `request_article/3`, `get_article/3`, `update_article/4`,
+  `regenerate_article/3`, `publish_article/3`, `reject_article/3`, `delete_article/3`,
+  with `FoPost.BlogSettings`, `FoPost.BlogKeyword`, `FoPost.BlogArticle`,
+  `FoPost.BlogArticleFull`, `FoPost.BlogArticleImage` and `FoPost.BlogWebsiteTest`.
+  Planning, requesting and regenerating need `ai`; publishing needs `publish`.
+- `FoPost.Webhooks.verify/4` verifies a delivery from its raw body and request headers,
+  preferring the timestamped `X-FoPost-Signature-256` with a 300 second tolerance and
+  falling back to `X-FoPost-Signature` only when no timestamp header is present, plus
+  `timestamped_signature/3` for testing a handler. `article.published` joins `events/0`,
+  and `FoPost.BlogArticlePublished` types its payload.
 - `FoPost.InboxItem` carries `:moderation_status` (the platform's own state for
   a comment: `"published"`, `"held"`, `"spam"`, `"rejected"`), and
   `FoPost.InboxAccount` carries `:reconnect_required` for an account connected
@@ -83,6 +91,11 @@ All notable changes to this project are documented in this file. The format foll
   `tiktok_video_lookup/3`), Instagram audio, publishing limit and stories
   (`instagram_audio/3`, `instagram_publishing_limit/2`, `instagram_stories/3`,
   `instagram_story_insights/3`), and LinkedIn mentions (`linkedin_mentions/3`).
+
+### Changed
+
+- Signature comparison in `FoPost.Webhooks` now uses `:crypto.hash_equals/2`.
+- Direct uploads no longer stop at 50 MB; the ceiling is the account's `limits/2`.
 
 ## [0.3.0] - 2026-09-19
 
