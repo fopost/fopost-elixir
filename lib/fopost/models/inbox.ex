@@ -103,10 +103,11 @@ end
 
 defmodule FoPost.InboxItem do
   @moduledoc """
-  One comment, mention, or direct message on a connected account.
+  One comment, mention, review, or direct message on a connected account.
 
-  `:type` is `"comment"`, `"mention"`, or `"dm"`; `:state` is `"unread"`, `"read"`,
-  `"resolved"`, or `"snoozed"`; `:direction` is `"inbound"` or `"outbound"`. The `can_*`
+  `:type` is `"comment"`, `"mention"`, `"review"`, or `"dm"`; `:state` is `"unread"`,
+  `"read"`, `"resolved"`, or `"snoozed"`; `:direction` is `"inbound"` or `"outbound"`.
+  `:rating` is the stars on a review, 1-5, and nil on every other type. The `can_*`
   flags say which actions the platform supports for this item.
   """
 
@@ -129,6 +130,7 @@ defmodule FoPost.InboxItem do
     :author_handle,
     :author_avatar_url,
     :text,
+    :rating,
     :permalink,
     :post_external_id,
     :parent_external_id,
@@ -151,6 +153,7 @@ defmodule FoPost.InboxItem do
     :can_send_media,
     :can_quick_reply,
     :can_private_reply,
+    :moderation_status,
     :post,
     :post_context,
     :account,
@@ -176,6 +179,7 @@ defmodule FoPost.InboxItem do
       author_handle: fields["author_handle"],
       author_avatar_url: fields["author_avatar_url"],
       text: fields["text"],
+      rating: fields["rating"],
       attachments: Model.list(InboxAttachment, fields["attachments"]),
       permalink: fields["permalink"],
       post_external_id: fields["post_external_id"],
@@ -199,6 +203,7 @@ defmodule FoPost.InboxItem do
       can_send_media: fields["can_send_media"],
       can_quick_reply: fields["can_quick_reply"],
       can_private_reply: fields["can_private_reply"],
+      moderation_status: fields["moderation_status"],
       post: Model.normalize(fields["post"]),
       post_context: Model.build(InboxPostContext, fields["post_context"]),
       account: Model.build(InboxAccountRef, fields["account"]),
@@ -211,7 +216,9 @@ end
 
 defmodule FoPost.InboxThread do
   @moduledoc """
-  One post with comments (or mentions), rolled up: how many, how many unread, the latest.
+  One post with comments (or mentions), or one review left on the business, rolled up:
+  how many, how many unread, the latest. `:rating` is the stars on a review thread, and
+  nil on comments and mentions.
   """
 
   alias FoPost.InboxAccountRef
@@ -227,6 +234,7 @@ defmodule FoPost.InboxThread do
     :last_comment_at,
     :last_comment_text,
     :last_comment_author,
+    :rating,
     :post,
     :account,
     :raw
@@ -247,6 +255,7 @@ defmodule FoPost.InboxThread do
       last_comment_at: Model.datetime(fields["last_comment_at"]),
       last_comment_text: fields["last_comment_text"],
       last_comment_author: fields["last_comment_author"],
+      rating: fields["rating"],
       post: Model.build(InboxPostContext, fields["post"]),
       account: Model.build(InboxAccountRef, fields["account"]),
       raw: data
@@ -307,7 +316,8 @@ defmodule FoPost.InboxAccount do
   @moduledoc """
   A connected account and whether its comments (`:inbox_supported`) and direct messages
   (`:dm_supported`) can be read. The `*_pending_reason` fields say why not.
-  `:can_start_conversation` says whether a new DM can be opened from it.
+  `:can_start_conversation` says whether a new DM can be opened from it, and
+  `:reconnect_required` means the grant predates a permission the inbox needs.
   """
 
   alias FoPost.Model
@@ -324,6 +334,7 @@ defmodule FoPost.InboxAccount do
     :dm_supported,
     :dm_pending_reason,
     :can_start_conversation,
+    :reconnect_required,
     :raw
   ]
 
@@ -345,6 +356,7 @@ defmodule FoPost.InboxAccount do
       dm_supported: fields["dm_supported"],
       dm_pending_reason: fields["dm_pending_reason"],
       can_start_conversation: fields["can_start_conversation"],
+      reconnect_required: fields["reconnect_required"],
       raw: data
     }
   end
@@ -513,6 +525,28 @@ defmodule FoPost.InboxConversationStart do
       item: Model.build(InboxItem, fields["item"]),
       raw: data
     }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.InboxHandover do
+  @moduledoc """
+  The outcome of a Messenger thread hand-over. `:app_id` is `nil` when control was taken
+  back, and `:control` is `"passed"` or `"taken"`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:app_id, :control, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{app_id: fields["app_id"], control: fields["control"], raw: data}
   end
 
   def from_map(_data), do: nil

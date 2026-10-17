@@ -345,4 +345,35 @@ defmodule FoPost.AdsTest do
     assert {:ok, ad} = Ads.create(TestSupport.client(bypass), opts)
     assert ad.creative["url_tags"] == "utm_source=meta"
   end
+
+  test "library joins countries and page ids into the query", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/ads/library", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+
+      assert conn.query_params == %{
+               "workspace_id" => "ws_1",
+               "connection_id" => "conn_1",
+               "countries" => "US,GB",
+               "q" => "running shoes",
+               "page_ids" => "111,222"
+             }
+
+      TestSupport.json(conn, 200, %{
+        "entries" => [%{"id" => "arch_1", "page_name" => "Someone Else"}],
+        "next_cursor" => nil
+      })
+    end)
+
+    assert {:ok, page} =
+             Ads.library(TestSupport.client(bypass),
+               workspace_id: "ws_1",
+               connection_id: "conn_1",
+               countries: ["US", "GB"],
+               q: "running shoes",
+               page_ids: ["111", "222"]
+             )
+
+    assert [entry] = page.entries
+    assert entry.page_name == "Someone Else"
+  end
 end
