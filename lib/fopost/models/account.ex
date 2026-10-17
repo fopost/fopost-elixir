@@ -404,3 +404,477 @@ defmodule FoPost.SlackIdentity do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.MetaIceBreaker do
+  @moduledoc """
+  A tappable prompt Messenger or Instagram shows before the first message.
+  `:question` is up to 80 characters and `:payload` is what your webhook receives.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:question, :payload, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{question: fields["question"], payload: fields["payload"], raw: data}
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.MetaMenuItem do
+  @moduledoc """
+  A persistent-menu item: a `"postback"` carrying `:payload`, or a `"web_url"` carrying an
+  http(s) `:url`. The unused one is `nil`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:type, :title, :payload, :url, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      type: fields["type"],
+      title: fields["title"],
+      payload: fields["payload"],
+      url: fields["url"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.MetaPersistentMenuEntry do
+  @moduledoc """
+  One locale's menu; `"default"` is the fallback every language uses.
+  """
+
+  alias FoPost.{MetaMenuItem, Model}
+
+  defstruct [:locale, :call_to_actions, :composer_input_disabled, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      locale: fields["locale"] || "default",
+      call_to_actions: Model.list(MetaMenuItem, fields["call_to_actions"]),
+      composer_input_disabled: fields["composer_input_disabled"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.MetaGreetingText do
+  @moduledoc """
+  One locale's greeting, up to 160 characters.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:locale, :text, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{locale: fields["locale"] || "default", text: fields["text"], raw: data}
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.WebhookSubscription do
+  @moduledoc """
+  What the network delivers to the FoPost webhook for one account. `:subscribed` is false
+  when the subscription lapsed or a required field is missing.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:subscribed, :fields, :missing_fields, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      subscribed: fields["subscribed"] || false,
+      fields: fields["fields"] || [],
+      missing_fields: fields["missing_fields"] || [],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordChannel do
+  @moduledoc """
+  A Discord text channel the bot can post to. `:type` is Discord's channel type — 0 text,
+  5 announcement, 15 forum — `:can_post` is false when a channel permission in Discord
+  shuts the bot out, and `:is_current` marks the one this account posts to.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :name, :type, :parent_id, :nsfw, :can_post, :is_current, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      type: fields["type"],
+      parent_id: fields["parent_id"],
+      nsfw: fields["nsfw"],
+      can_post: fields["can_post"],
+      is_current: fields["is_current"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordIdentity do
+  @moduledoc """
+  The nickname and avatar the bot wears in the server. A `nil` `:username` wears the
+  application's own name.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:username, :avatar_url, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      username: fields["username"],
+      avatar_url: fields["avatar_url"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordMessage do
+  @moduledoc "A message in the connected channel."
+
+  alias FoPost.Model
+
+  defstruct [:id, :channel_id, :content, :author_id, :author_name, :pinned, :created_at, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      channel_id: fields["channel_id"],
+      content: fields["content"],
+      author_id: fields["author_id"],
+      author_name: fields["author_name"],
+      pinned: fields["pinned"],
+      created_at: fields["created_at"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordMessageRef do
+  @moduledoc "A message the bot put somewhere."
+
+  alias FoPost.Model
+
+  defstruct [:id, :channel_id, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{id: fields["id"], channel_id: fields["channel_id"], raw: data}
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordThread do
+  @moduledoc "A thread started on a message."
+
+  alias FoPost.Model
+
+  defstruct [:id, :name, :parent_id, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{id: fields["id"], name: fields["name"], parent_id: fields["parent_id"], raw: data}
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordScheduledEvent do
+  @moduledoc """
+  An event on the server's calendar. `:channel_id` names a voice or stage channel;
+  otherwise `:location` says where it happens. `:status` is `"scheduled"`, `"active"`,
+  `"completed"` or `"canceled"`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :id,
+    :name,
+    :description,
+    :channel_id,
+    :location,
+    :start_time,
+    :end_time,
+    :status,
+    :user_count,
+    :raw
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      description: fields["description"],
+      channel_id: fields["channel_id"],
+      location: fields["location"],
+      start_time: fields["start_time"],
+      end_time: fields["end_time"],
+      status: fields["status"],
+      user_count: fields["user_count"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordMember do
+  @moduledoc """
+  A person in the connected server. `:id` is the member id for a DM and for a role
+  assignment; `:nick` is their nickname in this server.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :username, :display_name, :nick, :avatar, :is_bot, :roles, :joined_at, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      username: fields["username"],
+      display_name: fields["display_name"],
+      nick: fields["nick"],
+      avatar: fields["avatar"],
+      is_bot: fields["is_bot"],
+      roles: fields["roles"] || [],
+      joined_at: fields["joined_at"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordRole do
+  @moduledoc """
+  A role in the connected server. A `:managed` role belongs to an integration and cannot
+  be edited; `:permissions` is Discord's bitfield as a decimal string.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:id, :name, :color, :hoist, :mentionable, :managed, :position, :permissions, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      id: fields["id"],
+      name: fields["name"],
+      color: fields["color"],
+      hoist: fields["hoist"],
+      mentionable: fields["mentionable"],
+      managed: fields["managed"],
+      position: fields["position"],
+      permissions: fields["permissions"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.DiscordAck do
+  @moduledoc "What a Discord delete, pin or role assignment answers."
+
+  alias FoPost.Model
+
+  defstruct [:deleted, :pinned, :assigned, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      deleted: fields["deleted"],
+      pinned: fields["pinned"],
+      assigned: fields["assigned"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.PlatformMetricRow do
+  @moduledoc """
+  One metric a network reports under its own name.
+
+  `:key` is the platform's own name and is stable; `:label` is ours and may be reworded, so
+  match on the key. `:value` is a number for every `:kind` but `"series"`, which is a list of
+  points.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:key, :label, :kind, :value, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      key: fields["key"],
+      label: fields["label"],
+      kind: fields["kind"] || "count",
+      value: fields["value"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+
+  @doc """
+  The value as a number, or `nil` for a series or a non-numeric answer.
+  """
+  def number(%__MODULE__{value: value}) when is_number(value), do: value
+  def number(%__MODULE__{}), do: nil
+end
+
+defmodule FoPost.PlatformMetricsBlock do
+  @moduledoc """
+  One side of a per-network metric set: the account itself, or its newest measured post.
+  `:external_post_id` is `nil` on the account side.
+  """
+
+  alias FoPost.Model
+  alias FoPost.PlatformMetricRow
+
+  defstruct [:fetched_at, :external_post_id, metrics: [], raw: nil]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      fetched_at: fields["fetched_at"],
+      external_post_id: fields["external_post_id"],
+      metrics: Model.list(PlatformMetricRow, fields["metrics"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: %__MODULE__{}
+end
+
+defmodule FoPost.AccountPlatformMetrics do
+  @moduledoc """
+  What only this network reports, in its own vocabulary: ad-break earnings, story taps, a
+  retention curve, the search terms behind a listing.
+  """
+
+  alias FoPost.Model
+  alias FoPost.PlatformMetricsBlock
+
+  defstruct [:platform, :account, :post, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      platform: fields["platform"],
+      account: PlatformMetricsBlock.from_map(fields["account"]),
+      post: PlatformMetricsBlock.from_map(fields["post"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

@@ -173,4 +173,196 @@ defmodule FoPost.PostsTest do
       FoPost.Posts.get!(client, "missing")
     end
   end
+
+  describe "files on a post" do
+    defp presigned_slot(bypass) do
+      %{
+        "uploadId" => "up_1",
+        "uploadUrl" => "http://localhost:#{bypass.port}/bucket/up_1",
+        "method" => "PUT",
+        "headers" => %{"Content-Type" => "video/mp4"}
+      }
+    end
+
+    defp limits(conn, multipart_max_file_bytes) do
+      TestSupport.json(conn, 200, %{
+        "data" => %{
+          "maxFileBytes" => 5_368_709_120,
+          "multipartMaxFileBytes" => multipart_max_file_bytes
+        }
+      })
+    end
+
+    test "small files travel with the post as one multipart request", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/v1/media/limits", fn conn ->
+        assert conn.query_string == "workspaceId=ws_1"
+        limits(conn, 104_857_600)
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/v1/posts", fn conn ->
+        assert [content_type] = Plug.Conn.get_req_header(conn, "content-type")
+        assert content_type =~ "multipart/form-data"
+
+        {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+        assert raw =~ ~s(name="post")
+        assert raw =~ ~s("workspace_id":"ws_1")
+        assert raw =~ ~s("content":[{"text":"Hello"}])
+        assert raw =~ ~s(name="files"; filename="chart.png")
+        assert raw =~ "content-type: image/png"
+        assert raw =~ "PNGBYTES"
+
+        TestSupport.json(conn, 201, %{"data" => %{"id" => "post_1"}})
+      end)
+
+      assert {:ok, %FoPost.Post{id: "post_1"}} =
+               FoPost.Posts.create(TestSupport.client(bypass),
+                 workspace_id: "ws_1",
+                 accounts: ["acc_1"],
+                 content: "Hello",
+                 files: [%{filename: "chart.png", data: "PNGBYTES"}]
+               )
+    end
+
+    test "a file over the multipart ceiling goes direct and lands on the first block",
+         %{bypass: bypass} do
+      path = Path.join(System.tmp_dir!(), "fopost-#{System.unique_integer([:positive])}.mp4")
+      File.write!(path, "MP4BYTES")
+      on_exit(fn -> File.rm(path) end)
+
+      Bypass.expect_once(bypass, "GET", "/v1/media/limits", fn conn -> limits(conn, 4) end)
+
+      Bypass.expect_once(bypass, "POST", "/v1/media/presign", fn conn ->
+        {:ok, raw, conn} = Plug.Conn.read_body(conn)
+        body = Jason.decode!(raw)
+        assert body["workspaceId"] == "ws_1"
+        assert body["filename"] == Path.basename(path)
+        assert body["mimeType"] == "video/mp4"
+        assert body["size"] == 8
+
+        TestSupport.json(conn, 201, %{"data" => presigned_slot(bypass)})
+      end)
+
+      Bypass.expect_once(bypass, "PUT", "/bucket/up_1", fn conn ->
+        assert Plug.Conn.get_req_header(conn, "content-length") == ["8"]
+        {:ok, "MP4BYTES", conn} = Plug.Conn.read_body(conn)
+        Plug.Conn.resp(conn, 200, "")
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/v1/media/presign/up_1/complete", fn conn ->
+        data = %{
+          "id" => "media_1",
+          "type" => "video",
+          "name" => "clip.mp4",
+          "url" => "u",
+          "size" => 8
+        }
+
+        TestSupport.json(conn, 201, %{"data" => data})
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/v1/posts", fn conn ->
+        assert Plug.Conn.get_req_header(conn, "content-type") == ["application/json"]
+        {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+        assert Jason.decode!(raw)["content"] == [
+                 %{
+                   "text" => "Hello",
+                   "media" => [
+                     %{"type" => "video", "name" => "clip.mp4", "url" => "u", "size" => 8}
+                   ]
+                 },
+                 %{"text" => "Second"}
+               ]
+
+        TestSupport.json(conn, 201, %{"data" => %{"id" => "post_1"}})
+      end)
+
+      assert {:ok, %FoPost.Post{id: "post_1"}} =
+               FoPost.Posts.create(TestSupport.client(bypass),
+                 workspace_id: "ws_1",
+                 accounts: ["acc_1"],
+                 content: ["Hello", "Second"],
+                 files: [path]
+               )
+    end
+
+    test "update without content on the direct route appends to the post's first block",
+         %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/v1/media/limits", fn conn -> limits(conn, 4) end)
+
+      Bypass.expect_once(bypass, "GET", "/v1/posts/post_1", fn conn ->
+        data = %{
+          "id" => "post_1",
+          "workspace_id" => "ws_9",
+          "content" => [
+            %{"text" => "Existing", "media" => [%{"type" => "image", "url" => "old"}]}
+          ]
+        }
+
+        TestSupport.json(conn, 200, %{"data" => data})
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/v1/media/presign", fn conn ->
+        {:ok, raw, conn} = Plug.Conn.read_body(conn)
+        assert Jason.decode!(raw)["workspaceId"] == "ws_9"
+        TestSupport.json(conn, 201, %{"data" => presigned_slot(bypass)})
+      end)
+
+      Bypass.expect_once(bypass, "PUT", "/bucket/up_1", fn conn ->
+        Plug.Conn.resp(conn, 200, "")
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/v1/media/presign/up_1/complete", fn conn ->
+        TestSupport.json(conn, 201, %{"data" => %{"id" => "media_1", "url" => "new"}})
+      end)
+
+      Bypass.expect_once(bypass, "PUT", "/v1/posts/post_1", fn conn ->
+        {:ok, raw, conn} = Plug.Conn.read_body(conn)
+        body = Jason.decode!(raw)
+
+        assert [block] = body["content"]
+        assert block["text"] == "Existing"
+
+        assert [
+                 %{"url" => "old"},
+                 %{"type" => "gif", "name" => "a.gif", "url" => "new", "size" => 8}
+               ] =
+                 block["media"]
+
+        refute Map.has_key?(body, "workspace_id")
+        TestSupport.json(conn, 200, %{"data" => %{"id" => "post_1"}})
+      end)
+
+      assert {:ok, %FoPost.Post{id: "post_1"}} =
+               FoPost.Posts.update(TestSupport.client(bypass), "post_1",
+                 files: [%{filename: "a.gif", data: "GIFBYTES"}]
+               )
+    end
+
+    test "a 413 from the post endpoint surfaces as file_too_large", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "GET", "/v1/media/limits", fn conn ->
+        TestSupport.json(conn, 500, %{"error" => "internal"})
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/v1/posts", fn conn ->
+        TestSupport.json(conn, 413, %{
+          "error" => "file_too_large",
+          "message" => "Too big",
+          "max_file_bytes" => 104_857_600,
+          "file_bytes" => 8
+        })
+      end)
+
+      assert {:error, %FoPost.Error{status: 413, code: "file_too_large"} = error} =
+               FoPost.Posts.create(TestSupport.client(bypass, max_retries: 0),
+                 workspace_id: "ws_1",
+                 accounts: ["acc_1"],
+                 content: "Hello",
+                 files: [%{filename: "chart.png", data: "PNGBYTES"}]
+               )
+
+      assert error.body["max_file_bytes"] == 104_857_600
+    end
+  end
 end

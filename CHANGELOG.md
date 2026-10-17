@@ -8,9 +8,104 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Whatsapp` for a WhatsApp Business connection: the business profile
+  (`profile/2`, `update_profile/3`, `request_display_name/3`, `set_username/3`),
+  message templates including the platform's own library (`templates/3`,
+  `create_template/3`, `import_template/3`, …), groups, blocking, commerce settings
+  and flows (`create_flow/3`, `upload_flow_json/4`, `publish_flow/3`,
+  `flow_responses/2`, …), plus `account_events/2`. All need the `accounts` scope.
+- `FoPost.Whatsapp.create_sandbox_session/2` and `sandbox_sessions/2` invite a tester
+  to the platform-owned WhatsApp test number. Inviting sends a template, so it needs
+  the `publish` scope.
+
+- `FoPost.Media.limits/2` answers a `FoPost.UploadLimits`: the largest file the
+  account may upload by any route, the multipart ceiling per file, the files per call,
+  the accepted types, and the next tier.
+- `FoPost.Posts.create/2` and `update/3` take `:files`, a list of paths or maps of
+  `:filename`, `:mime_type`, and `:path` or `:data`. Files within the multipart ceiling
+  travel with the post in one request; larger ones are direct-uploaded first and attached
+  to the first content block.
+- `FoPost.Media.presign/2` takes `:folder_id`, `:origin`, `:brand_role`,
+  `:brand_voice_id`, and `:person_consent`, and `FoPost.PresignedUpload` carries
+  `:max_file_bytes`.
+- `FoPost.Media.upload_direct/6` streams a file given as `{:file, path}` instead of
+  holding it in memory, and takes the optional presign fields.
+- An oversize file is a `413` with `code: "file_too_large"`; `error.body` carries
+  `max_file_bytes`, `file_bytes`, and `upgrade_url`.
+- `FoPost.Blog`, articles for a website rather than posts for a network: `settings/2`,
+  `update_settings/3`, `rotate_website_secret/2`, `test_website/2`, `list_keywords/3`,
+  `plan_keywords/3`, `add_keyword/3`, `update_keyword/4`, `delete_keyword/3`,
+  `list_articles/3`, `request_article/3`, `get_article/3`, `update_article/4`,
+  `regenerate_article/3`, `publish_article/3`, `reject_article/3`, `delete_article/3`,
+  with `FoPost.BlogSettings`, `FoPost.BlogKeyword`, `FoPost.BlogArticle`,
+  `FoPost.BlogArticleFull`, `FoPost.BlogArticleImage` and `FoPost.BlogWebsiteTest`.
+  Planning, requesting and regenerating need `ai`; publishing needs `publish`.
+- `FoPost.Webhooks.verify/4` verifies a delivery from its raw body and request headers,
+  preferring the timestamped `X-FoPost-Signature-256` with a 300 second tolerance and
+  falling back to `X-FoPost-Signature` only when no timestamp header is present, plus
+  `timestamped_signature/3` for testing a handler. `article.published` joins `events/0`,
+  and `FoPost.BlogArticlePublished` types its payload.
+- `FoPost.InboxItem` carries `:moderation_status` (the platform's own state for
+  a comment: `"published"`, `"held"`, `"spam"`, `"rejected"`), and
+  `FoPost.InboxAccount` carries `:reconnect_required` for an account connected
+  before the inbox asked for a permission it needs.
+- `FoPost.Broadcasts` — one message into every conversation the workspace already
+  has with a segment of its contacts: `list/2`, `get/2`, `create/2`, `update/3`,
+  `delete/2`, `send/2`, `cancel/2`, `recipients/3`. Reading needs `inbox`; `send/2`
+  and `cancel/2` also need `publish`.
+- `FoPost.Sequences` — a series of messages on a delay: `list/2`, `get/2`,
+  `create/2`, `update/3`, `delete/2`, `enroll/3`, `unenroll/3`, `enrollments/3`.
+  `enroll/3` and `unenroll/3` need `publish`.
+- Both honour each network's messaging window server-side. Messenger and Instagram
+  take a business-initiated message only within 24 hours of the contact's last one,
+  so recipients outside it come back skipped with `"window_closed"` and nothing is
+  attempted — the number sent is often lower than the audience.
+- `FoPost.Contacts` — the people behind the inbox: `list/2`, `get/2`, `create/2`,
+  `update/3`, `delete/2`, `conversations/3` and `import/3`, plus `list_fields/2`,
+  `create_field/3`, `update_field/3` and `delete_field/2` for the columns a workspace
+  keeps about a person (scope `inbox`).
+- `FoPost.Contacts.conversation_analytics/2` — inbox volume and reply time per thread
+  (scope `analytics`). Each row's `:key` is an opaque handle for the thread rather than
+  the id or handle the inbox groups on.
+- Meta messaging settings on `FoPost.Accounts`: `ice_breakers/2`, `set_ice_breakers/3`, and
+  `delete_ice_breakers/2` (Facebook Pages and Instagram), plus `persistent_menu/2`,
+  `set_persistent_menu/3`, `delete_persistent_menu/2`, `greeting/2`, `set_greeting/3`, and
+  `delete_greeting/2` (Facebook Pages). A network without a field answers 400.
+- `FoPost.Accounts.webhook_subscription/2` reports whether the network is still delivering
+  events for an account, and `resubscribe_webhook/2` puts a lapsed subscription back.
+- `FoPost.Inbox.handover/4` passes a Messenger thread to another Meta app, or takes it back
+  when no `:app_id` is given (scope `inbox`, plus `publish`).
 - `FoPost.Accounts.slack_channels/2`, `slack_members/2`, `slack_identity/2`, and
   `update_slack_identity/3` read a Slack account's channels and workspace members and set
   the name and icon it posts under; a `nil` option clears a field (scope `accounts`).
+- The Discord bot surface on `FoPost.Accounts`: `discord_channels/2`,
+  `switch_discord_channel/3`, `discord_identity/2`, `update_discord_identity/3`,
+  `discord_pins/2`, `delete_discord_message/3`, `pin_discord_message/3`,
+  `unpin_discord_message/3`, `crosspost_discord_message/3`, `create_discord_thread/4`,
+  `send_discord_direct_message/4`, `discord_events/2`, `discord_event/3`,
+  `create_discord_event/3`, `update_discord_event/4`, `delete_discord_event/3`,
+  `discord_members/3`, `discord_member/3`, `discord_roles/2`, `create_discord_role/3`,
+  `update_discord_role/4`, `delete_discord_role/3`, `add_discord_member_role/4` and
+  `remove_discord_member_role/4` (scope `accounts`, plus `publish` for anything that
+  posts). A connection made with a webhook answers `409 webhook_connection`.
+- `FoPost.DiscordChannel` carries `:can_post`, false when a channel permission in
+  Discord shuts the bot out; `switch_discord_channel/3` answers
+  `409 channel_not_writable` for one.
+- Per-network extras on `FoPost.Accounts`, all under the `accounts` scope: Pinterest
+  boards (`pinterest_boards/2`, `create_pinterest_board/3`), YouTube playlists and
+  captions (`youtube_playlists/2`, `create_youtube_playlist/3`,
+  `set_default_youtube_playlist/3`, `youtube_captions/3`, `upload_youtube_captions/4`,
+  `youtube_transcript/3`), Bluesky post languages (`bluesky_languages/2`,
+  `set_bluesky_languages/3`), TikTok creator info, music and place search and video
+  lookup (`tiktok_creator_info/2`, `tiktok_music/4`, `tiktok_locations/4`,
+  `tiktok_video_lookup/3`), Instagram audio, publishing limit and stories
+  (`instagram_audio/3`, `instagram_publishing_limit/2`, `instagram_stories/3`,
+  `instagram_story_insights/3`), and LinkedIn mentions (`linkedin_mentions/3`).
+
+### Changed
+
+- Signature comparison in `FoPost.Webhooks` now uses `:crypto.hash_equals/2`.
+- Direct uploads no longer stop at 50 MB; the ceiling is the account's `limits/2`.
 
 ## [0.3.0] - 2026-09-19
 

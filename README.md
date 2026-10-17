@@ -158,35 +158,76 @@ FoPost.Posts.create(client,
 A file is a path, a `{filename, content}` tuple, or a map of `:filename`, `:content`, and
 optionally `:content_type`.
 
+A post can take its files directly. They are stored in the workspace library and attached
+to the first content block:
+
+```elixir
+FoPost.Posts.create(client,
+  workspace_id: workspace.id,
+  accounts: [account.id],
+  content: "Watch this",
+  files: ["clip.mp4", %{filename: "chart.png", mime_type: "image/png", data: bytes}]
+)
+
+FoPost.Posts.update(client, post.id, files: ["more.png"])
+```
+
+Files within the account's multipart ceiling travel with the post in one request; larger
+ones are direct-uploaded first and attached by URL. The SDK picks the route, so the result
+is the same either way.
+
+### Limits
+
+How large a file the account may upload grows with its connected accounts, or with the
+Large Uploads add-on. `FoPost.Media.limits/2` reports the current ceilings:
+
+```elixir
+{:ok, limits} = FoPost.Media.limits(client, workspace.id)
+limits.max_file_bytes            # the largest file by any route
+limits.multipart_max_file_bytes  # the most one file may carry in a multipart request
+limits.next_tier                 # %{up_to_accounts: 7, max_file_bytes: 419_430_400} or nil
+```
+
+A file over the limit is refused with a `413` whose body carries the ceiling:
+
+```elixir
+{:error, %FoPost.Error{status: 413, code: "file_too_large"} = error} = result
+error.body["max_file_bytes"]
+error.upgrade_url
+```
+
 A direct upload sends the bytes to a presigned URL instead of through the API, then files
-them in the library:
+them in the library. Pass `{:file, path}` to stream the file from disk:
 
 ```elixir
 {:ok, asset} =
-  FoPost.Media.upload_direct(client, workspace.id, "chart.png", "image/png", bytes)
+  FoPost.Media.upload_direct(client, workspace.id, "clip.mp4", "video/mp4", {:file, path})
 ```
 
 `FoPost.Media.presign/2` and `FoPost.Media.complete/2` are the two steps it wraps, for a
-client that `PUT`s the bytes itself.
+client that `PUT`s the bytes itself. `presign/2` also takes `:folder_id`, `:origin`,
+`:brand_role`, `:brand_voice_id`, and `:person_consent`.
 
 ## Webhooks
 
-A delivery carries `X-FoPost-Signature` (`sha256=<hex>`), `X-FoPost-Event`, and
-`X-FoPost-Delivery`. Verify against the **raw** body, before any JSON decoding:
+A delivery carries `X-FoPost-Signature` (`sha256=<hex>` over the body),
+`X-FoPost-Timestamp`, `X-FoPost-Signature-256` (`sha256=<hex>` over
+`"<timestamp>.<body>"`), `X-FoPost-Event`, and `X-FoPost-Delivery`. Verify against the
+**raw** body, before any JSON decoding:
 
 ```elixir
 {:ok, raw, conn} = Plug.Conn.read_body(conn)
-[signature] = Plug.Conn.get_req_header(conn, "x-fopost-signature")
 
-case FoPost.Webhooks.verify_and_parse(raw, signature, secret) do
+case FoPost.Webhooks.verify(raw, conn.req_headers, secret) do
   {:ok, event} -> handle(event)
-  {:error, :invalid_signature} -> Plug.Conn.send_resp(conn, 401, "")
   {:error, :invalid_payload} -> Plug.Conn.send_resp(conn, 400, "")
+  {:error, _reason} -> Plug.Conn.send_resp(conn, 401, "")
 end
 ```
 
-The comparison is constant time. No timestamp is mixed into the signature, so there is no
-replay window to enforce — deduplicate on `X-FoPost-Delivery` if you need it.
+`verify/4` prefers the timestamped signature and rejects one more than 300 seconds old
+(`:tolerance` changes that); it falls back to the plain body signature only when no
+timestamp header arrived. Every comparison is constant time.
 
 ## Retries
 
@@ -234,15 +275,82 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 
 `FoPost.Posts` · `FoPost.Workspaces` · `FoPost.Accounts` · `FoPost.AccountGroups` ·
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
-`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Blogs` ·
-`FoPost.Validate`
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
+`FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
+`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Blogs` · `FoPost.Whatsapp`
+`FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
+
+## Inbox, contacts, broadcasts and ads
+`FoPost.Accounts.platform_metrics/2` reads the numbers only an account's own network
+reports, in its own vocabulary — ad-break earnings, story taps, a retention curve, the
+search terms behind a listing. A network whose metric access has not been granted yet
+answers `503`:
+
+```elixir
+{:ok, metrics} = FoPost.Accounts.platform_metrics(client, account.id)
+
+for row <- metrics.account.metrics do
+  IO.puts("#{row.label}: #{inspect(row.value)}")
+end
+```
 
 ## Inbox and ads
 
 `FoPost.Inbox` reads comments, mentions, and direct messages on connected accounts and
-replies as the account (scope `inbox`). `FoPost.Ads` boosts posts, creates ads, and
-manages campaigns, ad sets, creatives, audiences, insights, lead forms, and the leads
-feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
+replies as the account (scope `inbox`). `FoPost.Contacts` is the people behind that
+inbox: one row per human however many handles they write from, the custom fields the
+workspace keeps about them, and a CSV import (scope `inbox`, except
+`conversation_analytics/2`, which answers counts per thread under `analytics`).
+
+`FoPost.Broadcasts` sends one message into every conversation the workspace already has
+with a segment of those contacts, and `FoPost.Sequences` walks a series of them on a
+delay. Neither opens a cold DM. Nothing is sent into a closed messaging window: Messenger
+and Instagram take a business-initiated message only within 24 hours of the contact's last
+one, so recipients outside it come back skipped with `"window_closed"` rather than
+attempted, and the number sent is often lower than the audience. Telegram, Slack, Bluesky
+and Reddit have no window. Both read under `inbox`; `send/2`, `cancel/2`, `enroll/3` and
+`unenroll/3` need `publish` as well.
+
+```elixir
+{:ok, broadcast} =
+  FoPost.Broadcasts.create(client,
+    workspace_id: workspace_id,
+    account_id: account_id,
+    name: "September check-in",
+    text: "New colours just landed. Want a look?",
+    audience: %{"platforms" => ["instagram"]}
+  )
+
+# `recipients` is how many contacts matched, not how many will be messaged.
+{:ok, sent} = FoPost.Broadcasts.send(client, broadcast.id)
+
+# Who was skipped, and why.
+{:ok, page} = FoPost.Broadcasts.recipients(client, broadcast.id, status: "skipped")
+Enum.each(page.data, &IO.puts("#{&1.display_name} — #{&1.skip_reason}"))
+
+{:ok, sequence} =
+  FoPost.Sequences.create(client,
+    workspace_id: workspace_id,
+    account_id: account_id,
+    name: "Welcome",
+    steps: [
+      %{"delay_hours" => 0, "text" => "Thanks for the follow"},
+      %{"delay_hours" => 48, "text" => "Here is what people usually ask us first."}
+    ]
+  )
+
+{:ok, _} = FoPost.Sequences.enroll(client, sequence.id, contact_ids: [contact_id])
+{:ok, _} = FoPost.Sequences.unenroll(client, sequence.id, [contact_id])
+```
+
+`FoPost.Knowledge` holds what the workspace has
+told FoPost about itself — FAQs, notes, your own pages and plain-text files — and
+`search/3` returns the passages that ground a drafted reply in your own answers rather
+than an invented one (same `inbox` scope).
+`FoPost.Ads` boosts posts, creates ads, and
+manages campaigns, ad sets, creatives, product catalogs, audiences, reach-and-frequency
+predictions, the public ad archive, ad account settings, insights, lead forms, and the
+leads feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
 `bulk_set_status/2`, and the campaign, ad set, and network ad writes spend money and also
 need `publish`). A boost, campaign, ad set, or ad starts paused unless `paused: false`.
 Campaign-tree objects are addressed by Meta id and read live, so those calls take
@@ -283,6 +391,108 @@ meta = [workspace_id: workspace.id, connection_id: connection.id]
 {:ok, next} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, cursor: page.next_cursor)
 ```
 
+## Google Business Profile
+
+`FoPost.GoogleBusiness` manages a connected Business Profile location: the profile,
+attributes, food menus, services, photos, action links, verification and performance.
+
+```elixir
+{:ok, location} = FoPost.GoogleBusiness.get_location(client, account_id)
+
+{:ok, _} =
+  FoPost.GoogleBusiness.update_location(client, account_id, %{"title" => "Corner Bakery"})
+
+# Photos come from your media library, JPEG or PNG.
+{:ok, _} = FoPost.GoogleBusiness.add_media(client, account_id, media_id: media_id,
+                                            category: "INTERIOR")
+
+{:ok, metrics} =
+  FoPost.GoogleBusiness.get_performance(client, account_id,
+    start_date: "2026-09-01",
+    end_date: "2026-09-30"
+  )
+```
+
+Responses relay Google's own shape as plain maps. Reads need the `accounts` scope, writes
+`publish` as well. Every call answers a 503 `configuration_error` until Google grants the
+deployment Business Profile API access.
+
+## Blog
+
+`FoPost.Blog` plans keywords, writes articles and publishes them to a target: the product
+blog, a connected account, or your own website. A post goes to a social network; an
+article goes to a website. Requesting an article spends AI credits (scope `ai`) and comes
+back `queued`; poll for the draft:
+
+```elixir
+{:ok, article} =
+  FoPost.Blog.request_article(client, workspace.id,
+    keyword: "social media calendar",
+    instructions: "Lead with the calendar view."
+  )
+
+{:ok, draft} = FoPost.Blog.get_article(client, workspace.id, article.id)
+{:ok, _article} = FoPost.Blog.publish_article(client, workspace.id, article.id)
+```
+
+A website target receives each published article as a signed request, with the secret
+`FoPost.Blog.update_settings/3` returns once when `:website_url` is first set. Verify it
+like any other delivery and read the payload as `FoPost.BlogArticlePublished`:
+
+```elixir
+{:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+with {:ok, %{event: "article.published"} = event} <-
+       FoPost.Webhooks.verify(raw, conn.req_headers, website_secret) do
+  article = FoPost.BlogArticlePublished.from_map(event.data)
+  store(article.slug, article.body_html, article.images)
+end
+```
+
+Image URLs in the payload stay fetchable for six hours, so store your own copy.
+
+## Analytics
+
+```elixir
+# How long a post keeps earning, from the repeated readings of each post
+{:ok, decay} = FoPost.Analytics.decay(client, days: 30)
+decay.half_life_bucket
+#=> "1h_3h"
+
+# Whether posting more earned more
+{:ok, cadence} = FoPost.Analytics.frequency(client, days: 90)
+cadence.best.label
+#=> "3-5 a week"
+
+# Every reading held for one post, with what moved between them
+{:ok, timeline} = FoPost.Analytics.timeline(client, post.id)
+
+# Mirror the metrics into your own store, without refetching everything
+Stream.unfold(nil, fn
+  :done ->
+    nil
+
+  cursor ->
+    {:ok, page} = FoPost.Analytics.changes(client, since: cursor)
+    next = if page.has_more and page.cursor, do: DateTime.to_iso8601(page.cursor), else: :done
+    {page.changes, next}
+end)
+|> Enum.each(&save/1)
+
+# Refresh one post now instead of waiting for the next collection run
+{:ok, _} = FoPost.Analytics.collect_post(client, post.id)
+
+# Posts on the account that never went out through FoPost
+{:ok, page} = FoPost.Analytics.native_posts(client, account.id)
+```
+
+A post is addressed by its FoPost id or by its permalink, so a post made by
+hand on the network works the same way:
+
+```elixir
+FoPost.Analytics.timeline(client, "https://x.com/acme/status/1")
+```
+
 ## Validating
 
 `FoPost.Validate` checks content against platform rules without creating a post; nothing
@@ -300,10 +510,78 @@ hd(result.platforms).limit
 result.ok
 ```
 
+## Activity
+
+`FoPost.Activity.list/2` reads what happened in a workspace, newest first.
+
+```elixir
+{:ok, page} = FoPost.Activity.list(client, workspace_id: workspace_id)
+Enum.each(page.data, &IO.puts("#{&1.actor.name}: #{&1.summary}"))
+page.next_cursor
+```
+
+`kind: "security"` is the audit log: members joining, leaving or changing role and
+access, and changes to two-step verification, passkeys, single sign-on and
+signed-in devices. Those rows are append-only and never expire.
+
+```elixir
+{:ok, audit} = FoPost.Activity.list(client, workspace_id: workspace_id, kind: "security")
+
+## WhatsApp Business
+
+`FoPost.Whatsapp` reaches a WhatsApp Business number the customer already owns. The
+platform owns the templates, flows, profile and commerce settings, so every call is live
+and all of it answers 503 until WhatsApp is set up. Scope `accounts`, except the sandbox,
+which sends a template and needs `publish`.
+
+```elixir
+{:ok, profile} = FoPost.Whatsapp.profile(client, account_id)
+profile.quality_rating
+
+# Filing a template returns the review status the platform gave it.
+{:ok, template} =
+  FoPost.Whatsapp.create_template(client, account_id,
+    name: "order_shipped",
+    language: "en_US",
+    category: "UTILITY",
+    components: [%{"type" => "BODY", "text" => "Your order is on its way."}]
+  )
+
+template.status
+#=> "PENDING", until the platform approves it
+
+# A flow is created as a draft, its screens uploaded, then published.
+{:ok, flow} =
+  FoPost.Whatsapp.create_flow(client, account_id,
+    name: "Book a fitting",
+    categories: ["LEAD_GENERATION"]
+  )
+
+{:ok, _} = FoPost.Whatsapp.upload_flow_json(client, account_id, flow.id, %{"version" => "7.0", "screens" => []})
+{:ok, _} = FoPost.Whatsapp.publish_flow(client, account_id, flow.id)
+{:ok, answers} = FoPost.Whatsapp.flow_responses(client, account_id)
+```
+
 ## Examples
 
 [`examples/create_post.exs`](examples/create_post.exs) creates a draft, preflights it, and
 publishes it.
+
+## Chatbots and the inbox
+
+The [chat adapter](https://fopost.com/docs/sdks/chat-adapter) turns the FoPost inbox into one send/receive channel for a chatbot
+framework. It ships in the TypeScript and Python SDKs. There is no dedicated adapter here and no
+API change behind it, so the same loop is three pieces with this client:
+
+1. **Verify** the `inbox.message_received` webhook. The payload is ids only, on purpose, so
+   nothing a customer wrote sits in your logs. The [signing scheme](https://fopost.com/docs/webhooks/verification)
+   is HMAC-SHA256 over `{timestamp}.{body}`, refused past a five minute tolerance.
+2. **Read** the item back with `FoPost.Inbox.list(client, type: "dm", account_id: account_id)`, filtered to the payload's
+   `accountId` and matched on its `itemId`.
+3. **Answer** with `FoPost.Inbox.reply(client, item.id, text: text)`, or open a thread with
+   `FoPost.Inbox.start_conversation(client, …)`.
+
+Reading needs the `inbox` scope; answering needs `publish` as well.
 
 ## Development
 
@@ -326,3 +604,32 @@ Questions and bug reports go to
 ## License
 
 MIT © Porter Bridge, LLC. See [LICENSE](LICENSE).
+
+### Google Ads
+
+Campaigns, ad groups, ads, audiences, and insights are on `FoPost.Ads` and dispatch by
+connection. What only Google has is in `FoPost.GoogleAds`:
+
+```elixir
+{:ok, keywords} =
+  FoPost.GoogleAds.keywords(client,
+    connection_id: connection.id,
+    customer_id: "1234567890"
+  )
+
+{:ok, id} =
+  FoPost.GoogleAds.create_keyword(client,
+    workspace_id: workspace.id,
+    connection_id: connection.id,
+    customer_id: "1234567890",
+    ad_group_id: "1234567890~adGroup~77",
+    text: "running shoes",
+    match_type: "EXACT"
+  )
+```
+
+Also `keyword_ideas/2`, `keyword_metrics/2`, `search_terms/2`, `bid_strategies/2`,
+`ad_schedule/2` and `set_ad_schedule/2`, the negative keyword lists, `assets/2` and
+`asset_groups/2`, `local_services_leads/2`, the conversion functions, and `query/2` for a
+raw read-only GAQL SELECT. Changes need the `publish` scope as well as `ads`;
+`:customer_id` has to name an account the connection's grant reaches.
