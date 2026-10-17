@@ -277,7 +277,7 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
 `FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
-`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog`
+`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Whatsapp`
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
@@ -526,6 +526,40 @@ signed-in devices. Those rows are append-only and never expire.
 
 ```elixir
 {:ok, audit} = FoPost.Activity.list(client, workspace_id: workspace_id, kind: "security")
+
+## WhatsApp Business
+
+`FoPost.Whatsapp` reaches a WhatsApp Business number the customer already owns. The
+platform owns the templates, flows, profile and commerce settings, so every call is live
+and all of it answers 503 until WhatsApp is set up. Scope `accounts`, except the sandbox,
+which sends a template and needs `publish`.
+
+```elixir
+{:ok, profile} = FoPost.Whatsapp.profile(client, account_id)
+profile.quality_rating
+
+# Filing a template returns the review status the platform gave it.
+{:ok, template} =
+  FoPost.Whatsapp.create_template(client, account_id,
+    name: "order_shipped",
+    language: "en_US",
+    category: "UTILITY",
+    components: [%{"type" => "BODY", "text" => "Your order is on its way."}]
+  )
+
+template.status
+#=> "PENDING", until the platform approves it
+
+# A flow is created as a draft, its screens uploaded, then published.
+{:ok, flow} =
+  FoPost.Whatsapp.create_flow(client, account_id,
+    name: "Book a fitting",
+    categories: ["LEAD_GENERATION"]
+  )
+
+{:ok, _} = FoPost.Whatsapp.upload_flow_json(client, account_id, flow.id, %{"version" => "7.0", "screens" => []})
+{:ok, _} = FoPost.Whatsapp.publish_flow(client, account_id, flow.id)
+{:ok, answers} = FoPost.Whatsapp.flow_responses(client, account_id)
 ```
 
 ## Examples
