@@ -10,11 +10,13 @@ defmodule FoPost.BlogTest do
     "siteUrl" => "https://yourbrand.com",
     "topic" => "Scheduling",
     "audience" => nil,
+    "goal" => "leads",
+    "focusTopics" => "Content planning",
+    "avoidTopics" => "Politics",
     "language" => "en",
     "locationCode" => 2840,
     "cadencePerWeek" => 2,
     "reviewHoldDays" => 3,
-    "autoPublish" => false,
     "imageTier" => "standard",
     "inBodyImages" => 1,
     "minWords" => 900,
@@ -25,6 +27,12 @@ defmodule FoPost.BlogTest do
     "targetPlatform" => nil,
     "websiteUrl" => "https://yourbrand.com/hooks/articles",
     "hasWebsiteSecret" => true,
+    "planRun" => %{
+      "status" => "done",
+      "error" => nil,
+      "added" => 12,
+      "finishedAt" => "2026-10-10T08:00:00Z"
+    },
     "keywordDataAvailable" => true,
     "updatedAt" => "2026-10-10T09:00:00Z"
   }
@@ -39,6 +47,7 @@ defmodule FoPost.BlogTest do
     "source" => "provider",
     "status" => "planned",
     "plannedFor" => "2026-10-14",
+    "fitReason" => "Buyers comparing tools",
     "createdAt" => "2026-10-10T09:00:00Z"
   }
 
@@ -87,6 +96,33 @@ defmodule FoPost.BlogTest do
       assert settings.has_website_secret
       assert is_nil(settings.website_secret)
       assert %DateTime{} = settings.updated_at
+      assert settings.goal == "leads"
+      assert settings.focus_topics == "Content planning"
+      assert settings.avoid_topics == "Politics"
+      assert %FoPost.BlogPlanRun{status: "done", added: 12} = settings.plan_run
+      assert %DateTime{} = settings.plan_run.finished_at
+    end
+
+    test "update_settings sends the goal and topics as camelCase", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "PATCH", "/v1/blog/settings", fn conn ->
+        {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+        assert Jason.decode!(raw) == %{
+                 "workspaceId" => @ws,
+                 "goal" => "leads",
+                 "focusTopics" => "Content planning",
+                 "avoidTopics" => nil
+               }
+
+        TestSupport.json(conn, 200, %{"data" => @settings})
+      end)
+
+      assert {:ok, _settings} =
+               Blog.update_settings(TestSupport.client(bypass), @ws,
+                 goal: "leads",
+                 focus_topics: "Content planning",
+                 avoid_topics: nil
+               )
     end
 
     test "update_settings sends camelCase and lifts the one-time secret", %{bypass: bypass} do
@@ -159,6 +195,39 @@ defmodule FoPost.BlogTest do
       assert keyword.id == "kw_1"
       assert keyword.difficulty == 38
       assert keyword.planned_for == ~D[2026-10-14]
+      assert keyword.fit_reason == "Buyers comparing tools"
+    end
+
+    test "suggest_seeds sends seeds and a prompt and answers the terms", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/v1/blog/keywords/suggest", fn conn ->
+        {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+        assert Jason.decode!(raw) == %{
+                 "workspaceId" => @ws,
+                 "seeds" => ["scheduling"],
+                 "prompt" => "More for agencies"
+               }
+
+        TestSupport.json(conn, 200, %{"seeds" => ["agency content calendar", "client approvals"]})
+      end)
+
+      assert {:ok, ["agency content calendar", "client approvals"]} =
+               Blog.suggest_seeds(TestSupport.client(bypass), @ws,
+                 seeds: ["scheduling"],
+                 prompt: "More for agencies"
+               )
+    end
+
+    test "suggest_seeds on an empty balance is a 402", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/v1/blog/keywords/suggest", fn conn ->
+        TestSupport.json(conn, 402, %{
+          "error" => "insufficient_credits",
+          "message" => "Balance exhausted"
+        })
+      end)
+
+      assert {:error, error} = Blog.suggest_seeds(TestSupport.client(bypass), @ws)
+      assert FoPost.Error.payment_required?(error)
     end
 
     test "plan_keywords is queued and carries seeds", %{bypass: bypass} do
@@ -356,6 +425,25 @@ defmodule FoPost.BlogTest do
 
       assert {:error, error} = Blog.publish_article(TestSupport.client(bypass), @ws, "art_1")
       assert error.code == "no_target"
+    end
+
+    test "submit_article moves the article to review", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/v1/blog/articles/art_1/submit", fn conn ->
+        assert conn.query_string == "workspaceId=#{@ws}"
+        TestSupport.json(conn, 200, %{"data" => Map.put(@article, "status", "in_review")})
+      end)
+
+      assert {:ok, article} = Blog.submit_article(TestSupport.client(bypass), @ws, "art_1")
+      assert article.status == "in_review"
+    end
+
+    test "submit_article on a published article is a 409", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/v1/blog/articles/art_1/submit", fn conn ->
+        TestSupport.json(conn, 409, %{"error" => "invalid_state", "message" => "Not a draft"})
+      end)
+
+      assert {:error, error} = Blog.submit_article(TestSupport.client(bypass), @ws, "art_1")
+      assert error.status == 409
     end
 
     test "regenerate, publish and reject post to the action path", %{bypass: bypass} do

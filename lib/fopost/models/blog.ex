@@ -3,7 +3,11 @@ defmodule FoPost.BlogSettings do
   How a workspace plans, writes and publishes articles.
 
   `:target_kind` is `"product_blog"`, `"account"`, `"website"` or `nil`.
-  `:image_tier` is `"draft"`, `"standard"` or `"best"`.
+  `:image_tier` is `"draft"`, `"standard"` or `"best"`. `:goal` is `"traffic"`,
+  `"leads"`, `"sales"`, `"signups"`, `"authority"` or `nil`.
+  `:review_hold_days` is how many days before its planned date a picked keyword
+  starts being written. `:plan_run` is the last keyword research run, `nil`
+  before the first.
 
   `:website_secret` is set only on the result of `FoPost.Blog.update_settings/3`
   the first time `:website_url` is set, and nowhere else; `:has_website_secret`
@@ -16,11 +20,13 @@ defmodule FoPost.BlogSettings do
     :site_url,
     :topic,
     :audience,
+    :goal,
+    :focus_topics,
+    :avoid_topics,
     :language,
     :location_code,
     :cadence_per_week,
     :review_hold_days,
-    :auto_publish,
     :image_tier,
     :in_body_images,
     :min_words,
@@ -31,6 +37,7 @@ defmodule FoPost.BlogSettings do
     :target_platform,
     :website_url,
     :has_website_secret,
+    :plan_run,
     :keyword_data_available,
     :website_secret,
     :updated_at,
@@ -47,11 +54,13 @@ defmodule FoPost.BlogSettings do
       site_url: fields["site_url"],
       topic: fields["topic"],
       audience: fields["audience"],
+      goal: fields["goal"],
+      focus_topics: fields["focus_topics"],
+      avoid_topics: fields["avoid_topics"],
       language: fields["language"],
       location_code: fields["location_code"],
       cadence_per_week: fields["cadence_per_week"] || 0,
       review_hold_days: fields["review_hold_days"] || 0,
-      auto_publish: fields["auto_publish"] || false,
       image_tier: fields["image_tier"],
       in_body_images: fields["in_body_images"],
       min_words: fields["min_words"],
@@ -62,9 +71,40 @@ defmodule FoPost.BlogSettings do
       target_platform: fields["target_platform"],
       website_url: fields["website_url"],
       has_website_secret: fields["has_website_secret"] || false,
+      plan_run: Model.build(FoPost.BlogPlanRun, fields["plan_run"]),
       keyword_data_available: fields["keyword_data_available"] || false,
       website_secret: fields["website_secret"],
       updated_at: Model.datetime(fields["updated_at"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.BlogPlanRun do
+  @moduledoc """
+  The last keyword research run on a blog.
+
+  `:status` is `"queued"`, `"running"`, `"done"` or `"failed"`; `:error` says
+  why a run failed and `:added` counts the new keywords it found.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:status, :error, :added, :finished_at, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      status: fields["status"],
+      error: fields["error"],
+      added: fields["added"],
+      finished_at: Model.datetime(fields["finished_at"]),
       raw: data
     }
   end
@@ -107,7 +147,8 @@ defmodule FoPost.BlogKeyword do
 
   `:status` is `"suggested"`, `"planned"`, `"written"` or `"dismissed"`;
   `:source` is `"provider"`, `"user"` or `"agent"`. `:difficulty` is 0 to 100.
-  `:planned_for` is a `Date`.
+  `:planned_for` is a `Date`. `:fit_reason` says why the keyword serves the
+  blog goal.
   """
 
   alias FoPost.Model
@@ -122,6 +163,7 @@ defmodule FoPost.BlogKeyword do
     :source,
     :status,
     :planned_for,
+    :fit_reason,
     :created_at,
     :raw
   ]
@@ -142,6 +184,7 @@ defmodule FoPost.BlogKeyword do
       source: fields["source"],
       status: fields["status"],
       planned_for: Model.date(fields["planned_for"]),
+      fit_reason: fields["fit_reason"],
       created_at: Model.datetime(fields["created_at"]),
       raw: data
     }
@@ -184,8 +227,8 @@ defmodule FoPost.BlogArticle do
   @moduledoc """
   An article as a list shows it, without its body.
 
-  `:status` is `"queued"`, `"writing"`, `"draft"`, `"scheduled"`,
-  `"publishing"`, `"published"`, `"failed"` or `"rejected"`; `:origin` is
+  `:status` is `"queued"`, `"writing"`, `"draft"`, `"in_review"`,
+  `"scheduled"`, `"publishing"`, `"published"`, `"failed"` or `"rejected"`; `:origin` is
   `"plan"`, `"user"` or `"agent"`. `:error` carries why a write or publish
   failed.
   """
