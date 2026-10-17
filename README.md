@@ -432,8 +432,15 @@ back `queued`; poll for the draft:
   )
 
 {:ok, draft} = FoPost.Blog.get_article(client, workspace.id, article.id)
+{:ok, _article} = FoPost.Blog.submit_article(client, workspace.id, article.id)
 {:ok, _article} = FoPost.Blog.publish_article(client, workspace.id, article.id)
 ```
+
+Nothing publishes without approval: `submit_article/3` moves a draft to `"in_review"`,
+and only then can it be published or scheduled. Planning is goal-driven: set `:goal`,
+`:focus_topics` and `:avoid_topics` on the settings, refine search terms with
+`suggest_seeds/3`, then research them with `plan_keywords/3`. Results land as
+`"suggested"` keywords; setting one to `"planned"` picks it for the next free date.
 
 A website target receives each published article as a signed request, with the secret
 `FoPost.Blog.update_settings/3` returns once when `:website_url` is first set. Verify it

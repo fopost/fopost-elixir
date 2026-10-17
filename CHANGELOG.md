@@ -8,6 +8,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Blog.suggest_seeds/3` suggests about ten search terms from the blog goal and
+  topics; pass `:seeds` to refine and `:prompt` to steer. Spends AI credits.
+- `FoPost.Blog.submit_article/3` moves a draft, failed or rejected article to
+  `"in_review"`.
+- `FoPost.BlogSettings` gains `:goal`, `:focus_topics`, `:avoid_topics` and `:plan_run`
+  (`FoPost.BlogPlanRun`), and `update_settings/3` takes the first three.
+  `FoPost.BlogKeyword` gains `:fit_reason`, and article statuses gain `"in_review"`.
 - `FoPost.Whatsapp` for a WhatsApp Business connection: the business profile
   (`profile/2`, `update_profile/3`, `request_display_name/3`, `set_username/3`),
   message templates including the platform's own library (`templates/3`,
@@ -106,6 +113,17 @@ All notable changes to this project are documented in this file. The format foll
 
 - Signature comparison in `FoPost.Webhooks` now uses `:crypto.hash_equals/2`.
 - Direct uploads no longer stop at 50 MB; the ceiling is the account's `limits/2`.
+- `FoPost.Blog.plan_keywords/3` no longer fills the calendar: results land as
+  `"suggested"` keywords, and setting one to `"planned"` picks it for the next free
+  date. `:review_hold_days` is now the days before its planned date that a picked
+  keyword starts being written.
+- `FoPost.Blog.publish_article/3` and a `:publish_at` on a draft answer `409` until the
+  article is submitted with `submit_article/3`.
+
+### Removed
+
+- **Breaking:** `:auto_publish` is gone from `FoPost.BlogSettings` and
+  `FoPost.Blog.update_settings/3`. Nothing publishes without approval.
 
 ## [0.3.0] - 2026-09-19
 
