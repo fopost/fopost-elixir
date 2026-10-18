@@ -49,6 +49,7 @@ defmodule FoPost.Accounts do
   alias FoPost.TikTokVideoSource
   alias FoPost.ValidationResult
   alias FoPost.WebhookSubscription
+  alias FoPost.XFollowResult
   alias FoPost.YouTubeCaptionTrack
   alias FoPost.YouTubePlaylist
   alias FoPost.YouTubeTranscript
@@ -363,6 +364,25 @@ defmodule FoPost.Accounts do
       {:ok, Model.normalize(data)["subreddit"]}
     end
   end
+
+  @doc """
+  Follows an X user from this account. `user_id` is the numeric X user id. Needs the
+  `inbox` and `publish` scopes, and is metered as one pass-through X call.
+
+  A non-X account answers 404. An account connected before following was supported
+  answers `409 reconnect_required`; a spent X balance answers `402 platform_balance_spent`.
+  """
+  @spec follow_x_user(Client.t(), String.t(), String.t()) ::
+          {:ok, XFollowResult.t()} | {:error, FoPost.Error.t()}
+  def follow_x_user(client, id, user_id), do: x_follow(client, id, "follow", user_id)
+
+  @doc """
+  Unfollows an X user from this account. Same scopes, metering and errors as
+  `follow_x_user/3`.
+  """
+  @spec unfollow_x_user(Client.t(), String.t(), String.t()) ::
+          {:ok, XFollowResult.t()} | {:error, FoPost.Error.t()}
+  def unfollow_x_user(client, id, user_id), do: x_follow(client, id, "unfollow", user_id)
 
   @doc """
   Channels the Slack app can post to: every public channel, and private ones the app was
@@ -1146,6 +1166,13 @@ defmodule FoPost.Accounts do
   def set_reddit_default_subreddit!(client, id, subreddit),
     do: Result.unwrap!(set_reddit_default_subreddit(client, id, subreddit))
 
+  @doc "Same as `follow_x_user/3`, but raises `FoPost.Error`."
+  def follow_x_user!(client, id, user_id), do: Result.unwrap!(follow_x_user(client, id, user_id))
+
+  @doc "Same as `unfollow_x_user/3`, but raises `FoPost.Error`."
+  def unfollow_x_user!(client, id, user_id),
+    do: Result.unwrap!(unfollow_x_user(client, id, user_id))
+
   @doc "Same as `slack_channels/2`, but raises `FoPost.Error`."
   def slack_channels!(client, id), do: Result.unwrap!(slack_channels(client, id))
 
@@ -1275,6 +1302,14 @@ defmodule FoPost.Accounts do
     do: Result.unwrap!(send_discord_direct_message(client, id, member_id, content))
 
   defp discord(id, suffix), do: path(id) <> "/discord" <> suffix
+
+  defp x_follow(client, id, action, user_id) do
+    body = %{"user_id" => to_string(user_id)}
+
+    with {:ok, data} <- Client.request(client, :post, path(id) <> "/x/" <> action, json: body) do
+      {:ok, XFollowResult.from_map(data)}
+    end
+  end
 
   defp member_role(id, role_id, member_id),
     do: discord(id, "/roles/" <> encode(role_id) <> "/members/" <> encode(member_id))
