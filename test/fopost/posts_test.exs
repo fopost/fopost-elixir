@@ -366,3 +366,33 @@ defmodule FoPost.PostsTest do
     end
   end
 end
+
+defmodule FoPost.PostsUnpublishTest do
+  use ExUnit.Case, async: true
+
+  alias FoPost.TestSupport
+
+  setup do
+    {:ok, bypass: Bypass.open()}
+  end
+
+  test "unpublish posts and decodes one row per network", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/posts/post_1/unpublish", fn conn ->
+      TestSupport.json(conn, 200, %{
+        "data" => %{
+          "post_status" => "unpublished",
+          "deliveries" => [
+            %{"account_id" => "acc_1", "platform" => "twitter", "removed" => true},
+            %{"account_id" => "acc_2", "platform" => "linkedin", "removed" => false}
+          ]
+        }
+      })
+    end)
+
+    assert {:ok, result} = FoPost.Posts.unpublish(TestSupport.client(bypass), "post_1")
+    assert %FoPost.UnpublishResult{post_status: "unpublished"} = result
+
+    assert [%FoPost.UnpublishDelivery{removed: true}, %{platform: "linkedin", removed: false}] =
+             result.deliveries
+  end
+end
