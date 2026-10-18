@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `FoPost.Inbox.repost/2`, `unrepost/2`, `bookmark/2`, and `unbookmark/2` on X inbox items
+  where `:can_repost` and `:can_bookmark` are true, plus `:reposted`, `:bookmarked`,
+  `:can_repost`, and `:can_bookmark` on `FoPost.InboxItem` (scopes `inbox` and `publish`).
+- `FoPost.Accounts.follow_x_user/3` and `unfollow_x_user/3` follow a numeric X user id
+  from an X account, answering a `FoPost.XFollowResult` (scopes `inbox` and `publish`).
+- `FoPost.X.get_post/3` and `search_posts/4` look up one X post and search recent ones
+  through an account's own token, as `FoPost.XPost` and a `FoPost.XSearchPage` with
+  `:next_token` (scope `inbox`).
+- A spent X balance answers `402` with `code: "platform_balance_spent"`. An X account
+  connected before this release must be reconnected for repost, bookmark and follow;
+  until then it answers `409 reconnect_required`.
+
 ## [0.3.0] - 2026-10-18
 
 ### Added

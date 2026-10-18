@@ -277,7 +277,8 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
 `FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
-`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Blogs` · `FoPost.Whatsapp`
+`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Blogs` · `FoPost.Whatsapp` ·
+`FoPost.X`
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
@@ -390,6 +391,24 @@ meta = [workspace_id: workspace.id, connection_id: connection.id]
 {:ok, page} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, limit: 50)
 {:ok, next} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, cursor: page.next_cursor)
 ```
+
+## X
+
+On an X inbox item, `FoPost.Inbox.repost/2` and `bookmark/2` (with `unrepost/2` and
+`unbookmark/2`) act where `:can_repost` and `:can_bookmark` are true, and
+`FoPost.Accounts.follow_x_user/3` follows a numeric X user id from the account. All need
+`inbox` and `publish`. `FoPost.X` reads through the account's own token under `inbox`:
+
+```elixir
+{:ok, post} = FoPost.X.get_post(client, "1234567890", account.id)
+{:ok, page} = FoPost.X.search_posts(client, "from:yourbrand", account.id, max_results: 50)
+{:ok, more} = FoPost.X.search_posts(client, "from:yourbrand", account.id, next_token: page.next_token)
+```
+
+Every one of these is an X API call metered to the workspace; a spent X balance answers
+`402 platform_balance_spent`. An X account connected before these landed must be
+reconnected first, since the grant now asks for bookmarks and follows; until then it
+answers `409 reconnect_required`.
 
 ## Google Business Profile
 

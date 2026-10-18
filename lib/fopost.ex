@@ -33,7 +33,7 @@ defmodule FoPost do
   `FoPost.Posts`, `FoPost.Workspaces`, `FoPost.Accounts`, `FoPost.AccountGroups`,
   `FoPost.Communities`, `FoPost.Labels`, `FoPost.Webhooks`, `FoPost.Analytics`, `FoPost.Automations`,
   `FoPost.Media`, `FoPost.Inbox`, `FoPost.Contacts`, `FoPost.Broadcasts`, `FoPost.Sequences`,
-  `FoPost.Ads`, `FoPost.Validate`, `FoPost.Blog`. Anything they do not wrap is reachable
+  `FoPost.Ads`, `FoPost.Validate`, `FoPost.Blog`, `FoPost.X`. Anything they do not wrap is reachable
   through `request/4`.
   """
 
