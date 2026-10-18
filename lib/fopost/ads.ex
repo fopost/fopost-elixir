@@ -1,7 +1,7 @@
 defmodule FoPost.Ads do
   @moduledoc """
   Meta ads: boosts, standalone ads, catalogs, audiences, targeting, predictions,
-  the public ad archive, and lead forms.
+  the public ad archive, lead forms, pixels, the Conversions API, and custom conversions.
 
   The Google-only surface is `FoPost.GoogleAds`.
 
@@ -44,6 +44,9 @@ defmodule FoPost.Ads do
   alias FoPost.AdInsightsReport
   alias FoPost.AdLabel
   alias FoPost.AdLibraryPage
+  alias FoPost.AdPixel
+  alias FoPost.AdPixelDetail
+  alias FoPost.AdPixelStats
   alias FoPost.AdSet
   alias FoPost.AdSource
   alias FoPost.AdStudy
@@ -54,7 +57,11 @@ defmodule FoPost.Ads do
   alias FoPost.CatalogBatchResult
   alias FoPost.CatalogProductsPage
   alias FoPost.Client
+  alias FoPost.ConversionBatch
+  alias FoPost.ConversionUploadResult
   alias FoPost.CreatedAudience
+  alias FoPost.CustomConversion
+  alias FoPost.EventMatchQuality
   alias FoPost.ExternalAd
   alias FoPost.HighDemandPeriod
   alias FoPost.IosCampaignLimits
@@ -129,6 +136,33 @@ defmodule FoPost.Ads do
     {:pixel_id, "pixelId"},
     :events
   ]
+
+  @account_fields [
+    {:workspace_id, "workspaceId"},
+    {:connection_id, "connectionId"},
+    {:ad_account_id, "adAccountId"}
+  ]
+
+  @account_params [:workspace_id, :connection_id, :ad_account_id]
+
+  @pixel_fields @account_fields ++ [:name, {:data_use_setting, "dataUseSetting"}]
+
+  @custom_conversion_fields @account_fields ++
+                              [
+                                {:pixel_id, "pixelId"},
+                                :name,
+                                {:event_type, "eventType"},
+                                :rule,
+                                :description,
+                                {:default_value_minor, "defaultValueMinor"}
+                              ]
+
+  @custom_conversion_update_fields @account_fields ++
+                                     [
+                                       :name,
+                                       :description,
+                                       {:default_value_minor, "defaultValueMinor"}
+                                     ]
 
   @ad_set_fields [
     {:workspace_id, "workspaceId"},
@@ -526,18 +560,205 @@ defmodule FoPost.Ads do
   end
 
   @doc """
-  Offline conversions against a pixel the ad account owns. Identifiers are
-  hashed before anything leaves FoPost; answers how many the network accepted.
+  Conversions against a pixel the ad account owns, through the network's
+  Conversions API. Identifiers (`email`, `phone`, `externalId`) are hashed before
+  anything leaves FoPost. Each event takes `eventName`, `occurredAt`, and optionally
+  `eventId`, `actionSource`, `sourceUrl`, `clientIpAddress`, `clientUserAgent`,
+  `clickId`, `browserId`, `contentIds`, `valueMinor`, `currency`, `orderId`, spelled
+  the way the API does.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:pixel_id`,
+  `:events`. Optional: `:idempotency_key`, sent as the `Idempotency-Key` header.
+  """
+  @spec upload_conversions(Client.t(), keyword()) ::
+          {:ok, ConversionUploadResult.t()} | {:error, FoPost.Error.t()}
+  def upload_conversions(client, opts) do
+    post_conversions(client, "/ads/conversions", opts, Keyword.get(opts, :idempotency_key))
+  end
+
+  @doc """
+  The same upload as `upload_conversions/2`, but the `Idempotency-Key` is required:
+  a replay with the same key answers `replayed: true` and sends nothing. The key is
+  unique per workspace.
   Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:pixel_id`,
   `:events`.
   """
-  @spec upload_conversions(Client.t(), keyword()) ::
-          {:ok, non_neg_integer()} | {:error, FoPost.Error.t()}
-  def upload_conversions(client, opts) do
-    body = Model.take_body(opts, @conversion_fields)
+  @spec send_pixel_conversions(Client.t(), String.t(), keyword()) ::
+          {:ok, ConversionUploadResult.t()} | {:error, FoPost.Error.t()}
+  def send_pixel_conversions(client, idempotency_key, opts) when is_binary(idempotency_key) do
+    post_conversions(client, "/ads/conversions/events", opts, idempotency_key)
+  end
 
-    with {:ok, data} <- Client.request(client, :post, "/ads/conversions", json: body) do
-      {:ok, Model.normalize(data)["accepted"] || 0}
+  @doc """
+  Stored conversion uploads, newest first, with their hashed events.
+  Optional: `:workspace_id`, `:connection_id`, `:limit`.
+  """
+  @spec conversion_batches(Client.t(), keyword()) ::
+          {:ok, [ConversionBatch.t()]} | {:error, FoPost.Error.t()}
+  def conversion_batches(client, opts \\ []) do
+    params = Model.take_params(opts, [:workspace_id, :connection_id, :limit])
+
+    with {:ok, data} <- Client.request(client, :get, "/ads/conversions/events", params: params) do
+      {:ok, Model.list(ConversionBatch, data)}
+    end
+  end
+
+  @doc """
+  The pixels on an ad account.
+  Required: `:connection_id`, `:ad_account_id`. Optional: `:workspace_id`.
+  """
+  @spec pixels(Client.t(), keyword()) :: {:ok, [AdPixel.t()]} | {:error, FoPost.Error.t()}
+  def pixels(client, opts) do
+    with {:ok, data} <- get_account_object(client, "/ads/pixels", opts) do
+      {:ok, Model.list(AdPixel, data)}
+    end
+  end
+
+  @doc """
+  Creates a pixel; the answer carries the script to install.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:name`.
+  """
+  @spec create_pixel(Client.t(), keyword()) ::
+          {:ok, AdPixelDetail.t()} | {:error, FoPost.Error.t()}
+  def create_pixel(client, opts) do
+    body = Model.take_body(opts, @account_fields ++ [:name])
+
+    with {:ok, data} <- Client.request(client, :post, "/ads/pixels", json: body) do
+      {:ok, AdPixelDetail.from_map(data)}
+    end
+  end
+
+  @doc """
+  One pixel, with its install script.
+  Required: `:connection_id`, `:ad_account_id`. Optional: `:workspace_id`.
+  """
+  @spec pixel(Client.t(), String.t(), keyword()) ::
+          {:ok, AdPixelDetail.t()} | {:error, FoPost.Error.t()}
+  def pixel(client, id, opts) do
+    with {:ok, data} <- get_account_object(client, pixel_path(id), opts) do
+      {:ok, AdPixelDetail.from_map(data)}
+    end
+  end
+
+  @doc """
+  Renames a pixel or changes what its data may be used for.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`. Optional: `:name`,
+  `:data_use_setting` (`advertising_and_analytics`, `analytics_only`).
+  """
+  @spec update_pixel(Client.t(), String.t(), keyword()) ::
+          {:ok, AdPixelDetail.t()} | {:error, FoPost.Error.t()}
+  def update_pixel(client, id, opts) do
+    body = Model.take_body(opts, @pixel_fields)
+
+    with {:ok, data} <- Client.request(client, :patch, pixel_path(id), json: body) do
+      {:ok, AdPixelDetail.from_map(data)}
+    end
+  end
+
+  @doc """
+  Shares a pixel with another ad account under the same business portfolio.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:target_ad_account_id`.
+  """
+  @spec share_pixel(Client.t(), String.t(), keyword()) :: :ok | {:error, FoPost.Error.t()}
+  def share_pixel(client, id, opts) do
+    body =
+      Model.take_body(opts, @account_fields ++ [{:target_ad_account_id, "targetAdAccountId"}])
+
+    with {:ok, _} <- Client.request(client, :post, pixel_path(id, "share"), json: body) do
+      :ok
+    end
+  end
+
+  @doc """
+  How often each event fired on a pixel over the last 28 days.
+  Required: `:connection_id`, `:ad_account_id`. Optional: `:workspace_id`.
+  """
+  @spec pixel_stats(Client.t(), String.t(), keyword()) ::
+          {:ok, AdPixelStats.t()} | {:error, FoPost.Error.t()}
+  def pixel_stats(client, id, opts) do
+    with {:ok, data} <- get_account_object(client, pixel_path(id, "stats"), opts) do
+      {:ok, AdPixelStats.from_map(data)}
+    end
+  end
+
+  @doc """
+  The network's event match quality per event on a pixel.
+  Required: `:connection_id`, `:ad_account_id`. Optional: `:workspace_id`.
+  """
+  @spec event_match_quality(Client.t(), String.t(), keyword()) ::
+          {:ok, [EventMatchQuality.t()]} | {:error, FoPost.Error.t()}
+  def event_match_quality(client, id, opts) do
+    with {:ok, data} <- get_account_object(client, pixel_path(id, "match-quality"), opts) do
+      {:ok, Model.list(EventMatchQuality, data)}
+    end
+  end
+
+  @doc """
+  The custom conversions on an ad account.
+  Required: `:connection_id`, `:ad_account_id`. Optional: `:workspace_id`.
+  """
+  @spec custom_conversions(Client.t(), keyword()) ::
+          {:ok, [CustomConversion.t()]} | {:error, FoPost.Error.t()}
+  def custom_conversions(client, opts) do
+    with {:ok, data} <- get_account_object(client, "/ads/custom-conversions", opts) do
+      {:ok, Model.list(CustomConversion, data)}
+    end
+  end
+
+  @doc """
+  Creates a custom conversion on a pixel. `:rule` is sent as given
+  (`eventName`, and one of `urlContains` or `urlEquals`).
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:pixel_id`, `:name`,
+  `:event_type` (a standard event type such as `PURCHASE` or `LEAD`), `:rule`.
+  Optional: `:description`, `:default_value_minor`.
+  """
+  @spec create_custom_conversion(Client.t(), keyword()) ::
+          {:ok, CustomConversion.t()} | {:error, FoPost.Error.t()}
+  def create_custom_conversion(client, opts) do
+    body = Model.take_body(opts, @custom_conversion_fields)
+
+    with {:ok, data} <- Client.request(client, :post, "/ads/custom-conversions", json: body) do
+      {:ok, CustomConversion.from_map(data)}
+    end
+  end
+
+  @doc """
+  One custom conversion.
+  Required: `:connection_id`, `:ad_account_id`. Optional: `:workspace_id`.
+  """
+  @spec custom_conversion(Client.t(), String.t(), keyword()) ::
+          {:ok, CustomConversion.t()} | {:error, FoPost.Error.t()}
+  def custom_conversion(client, id, opts) do
+    with {:ok, data} <- get_account_object(client, custom_conversion_path(id), opts) do
+      {:ok, CustomConversion.from_map(data)}
+    end
+  end
+
+  @doc """
+  Changes a custom conversion's name, description, or default value.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`. Optional: `:name`,
+  `:description`, `:default_value_minor`.
+  """
+  @spec update_custom_conversion(Client.t(), String.t(), keyword()) ::
+          {:ok, CustomConversion.t()} | {:error, FoPost.Error.t()}
+  def update_custom_conversion(client, id, opts) do
+    body = Model.take_body(opts, @custom_conversion_update_fields)
+
+    with {:ok, data} <- Client.request(client, :patch, custom_conversion_path(id), json: body) do
+      {:ok, CustomConversion.from_map(data)}
+    end
+  end
+
+  @doc """
+  Deletes a custom conversion. The scope travels in the body.
+  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`.
+  """
+  @spec delete_custom_conversion(Client.t(), String.t(), keyword()) ::
+          :ok | {:error, FoPost.Error.t()}
+  def delete_custom_conversion(client, id, opts) do
+    body = Model.take_body(opts, @account_fields)
+
+    with {:ok, _} <- Client.request(client, :delete, custom_conversion_path(id), json: body) do
+      :ok
     end
   end
 
@@ -1357,6 +1578,55 @@ defmodule FoPost.Ads do
   def send_conversion_events!(client, id, opts),
     do: Result.unwrap!(send_conversion_events(client, id, opts))
 
+  @doc "Same as `send_pixel_conversions/3`, but raises `FoPost.Error`."
+  def send_pixel_conversions!(client, idempotency_key, opts),
+    do: Result.unwrap!(send_pixel_conversions(client, idempotency_key, opts))
+
+  @doc "Same as `conversion_batches/2`, but raises `FoPost.Error`."
+  def conversion_batches!(client, opts \\ []),
+    do: Result.unwrap!(conversion_batches(client, opts))
+
+  @doc "Same as `pixels/2`, but raises `FoPost.Error`."
+  def pixels!(client, opts), do: Result.unwrap!(pixels(client, opts))
+
+  @doc "Same as `create_pixel/2`, but raises `FoPost.Error`."
+  def create_pixel!(client, opts), do: Result.unwrap!(create_pixel(client, opts))
+
+  @doc "Same as `pixel/3`, but raises `FoPost.Error`."
+  def pixel!(client, id, opts), do: Result.unwrap!(pixel(client, id, opts))
+
+  @doc "Same as `update_pixel/3`, but raises `FoPost.Error`."
+  def update_pixel!(client, id, opts), do: Result.unwrap!(update_pixel(client, id, opts))
+
+  @doc "Same as `share_pixel/3`, but raises `FoPost.Error`."
+  def share_pixel!(client, id, opts), do: Result.unwrap!(share_pixel(client, id, opts))
+
+  @doc "Same as `pixel_stats/3`, but raises `FoPost.Error`."
+  def pixel_stats!(client, id, opts), do: Result.unwrap!(pixel_stats(client, id, opts))
+
+  @doc "Same as `event_match_quality/3`, but raises `FoPost.Error`."
+  def event_match_quality!(client, id, opts),
+    do: Result.unwrap!(event_match_quality(client, id, opts))
+
+  @doc "Same as `custom_conversions/2`, but raises `FoPost.Error`."
+  def custom_conversions!(client, opts), do: Result.unwrap!(custom_conversions(client, opts))
+
+  @doc "Same as `create_custom_conversion/2`, but raises `FoPost.Error`."
+  def create_custom_conversion!(client, opts),
+    do: Result.unwrap!(create_custom_conversion(client, opts))
+
+  @doc "Same as `custom_conversion/3`, but raises `FoPost.Error`."
+  def custom_conversion!(client, id, opts),
+    do: Result.unwrap!(custom_conversion(client, id, opts))
+
+  @doc "Same as `update_custom_conversion/3`, but raises `FoPost.Error`."
+  def update_custom_conversion!(client, id, opts),
+    do: Result.unwrap!(update_custom_conversion(client, id, opts))
+
+  @doc "Same as `delete_custom_conversion/3`, but raises `FoPost.Error`."
+  def delete_custom_conversion!(client, id, opts),
+    do: Result.unwrap!(delete_custom_conversion(client, id, opts))
+
   @doc "Same as `delete_connection/3`, but raises `FoPost.Error`."
   def delete_connection!(client, id, opts),
     do: Result.unwrap!(delete_connection(client, id, opts))
@@ -1510,6 +1780,26 @@ defmodule FoPost.Ads do
   defp meta_params(opts), do: Model.take_params(opts, [:workspace_id, :connection_id])
 
   defp conversion_rule_path(id), do: "/ads/linkedin/conversion-rules/" <> encode(id)
+
+  defp post_conversions(client, path, opts, idempotency_key) do
+    body = Model.take_body(opts, @conversion_fields)
+    headers = if idempotency_key, do: [{"idempotency-key", idempotency_key}], else: []
+
+    with {:ok, data} <- Client.request(client, :post, path, json: body, headers: headers) do
+      {:ok, ConversionUploadResult.from_map(data)}
+    end
+  end
+
+  defp get_account_object(client, path, opts) do
+    Client.request(client, :get, path, params: Model.take_params(opts, @account_params))
+  end
+
+  defp pixel_path(id, suffix \\ nil) do
+    base = "/ads/pixels/" <> encode(id)
+    if suffix, do: base <> "/" <> suffix, else: base
+  end
+
+  defp custom_conversion_path(id), do: "/ads/custom-conversions/" <> encode(id)
 
   defp forecast_body(opts, extra) do
     Model.take_body(
