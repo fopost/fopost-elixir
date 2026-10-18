@@ -99,11 +99,9 @@ defmodule FoPost.Blog do
   def update_settings(client, workspace_id, opts) do
     body = Model.take_body([{:workspace_id, workspace_id} | opts], @settings_body)
 
-    with {:ok, body} <-
-           Client.request(client, :patch, "/blog/settings", json: body, unwrap: false) do
-      settings = BlogSettings.from_map(Map.get(body, "data", %{}))
-
-      {:ok, %{settings | website_secret: Map.get(body, "websiteSecret")}}
+    # `website_secret` rides beside the settings, so `from_map/1` picks it up.
+    with {:ok, data} <- Client.request(client, :patch, "/blog/settings", json: body) do
+      {:ok, BlogSettings.from_map(data)}
     end
   end
 
@@ -117,7 +115,7 @@ defmodule FoPost.Blog do
            Client.request(client, :post, "/blog/settings/website-secret",
              json: %{"workspaceId" => workspace_id}
            ) do
-      {:ok, Map.get(data, "websiteSecret")}
+      {:ok, Map.get(data, "website_secret")}
     end
   end
 
@@ -452,8 +450,7 @@ defmodule FoPost.Blog do
     end
   end
 
-  # The blog routes read the workspace as camelCase, unlike most query strings in the API.
-  defp workspace(workspace_id), do: [{"workspaceId", workspace_id}]
+  defp workspace(workspace_id), do: [{"workspace_id", workspace_id}]
 
   defp keyword_path(id), do: "/blog/keywords/" <> encode(id)
   defp article_path(id), do: "/blog/articles/" <> encode(id)

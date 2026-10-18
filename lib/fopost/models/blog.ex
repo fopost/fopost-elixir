@@ -116,8 +116,9 @@ defmodule FoPost.BlogWebsiteTest do
   @moduledoc """
   What a test delivery to the website target came back with.
 
-  `:ok` is whether the site answered 2xx; `:status` is its HTTP status and
-  `:error` the transport failure when there was no status at all.
+  `:ok` is whether the site answered 2xx and `:status` is its HTTP status.
+  Built from a failed delivery's error body, `:ok` is false and `:error` carries
+  the reason.
   """
 
   alias FoPost.Model
@@ -131,9 +132,9 @@ defmodule FoPost.BlogWebsiteTest do
     fields = Model.normalize(data)
 
     %__MODULE__{
-      ok: fields["ok"] || false,
-      status: fields["status"],
-      error: fields["error"],
+      ok: is_nil(fields["error"]),
+      status: fields["http_status"],
+      error: if(fields["error"], do: fields["message"]),
       raw: data
     }
   end

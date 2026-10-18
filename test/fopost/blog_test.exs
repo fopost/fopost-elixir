@@ -7,48 +7,48 @@ defmodule FoPost.BlogTest do
   @ws "7d6f2e1a-0000-4000-8000-000000000001"
 
   @settings %{
-    "siteUrl" => "https://yourbrand.com",
+    "site_url" => "https://yourbrand.com",
     "topic" => "Scheduling",
     "audience" => nil,
     "goal" => "leads",
-    "focusTopics" => "Content planning",
-    "avoidTopics" => "Politics",
+    "focus_topics" => "Content planning",
+    "avoid_topics" => "Politics",
     "language" => "en",
-    "locationCode" => 2840,
-    "cadencePerWeek" => 2,
-    "reviewHoldDays" => 3,
-    "imageTier" => "standard",
-    "inBodyImages" => 1,
-    "minWords" => 900,
-    "maxWords" => 1500,
-    "brandVoiceId" => nil,
-    "targetKind" => "website",
-    "targetAccountId" => nil,
-    "targetPlatform" => nil,
-    "websiteUrl" => "https://yourbrand.com/hooks/articles",
-    "hasWebsiteSecret" => true,
-    "planRun" => %{
+    "location_code" => 2840,
+    "cadence_per_week" => 2,
+    "review_hold_days" => 3,
+    "image_tier" => "standard",
+    "in_body_images" => 1,
+    "min_words" => 900,
+    "max_words" => 1500,
+    "brand_voice_id" => nil,
+    "target_kind" => "website",
+    "target_account_id" => nil,
+    "target_platform" => nil,
+    "website_url" => "https://yourbrand.com/hooks/articles",
+    "has_website_secret" => true,
+    "plan_run" => %{
       "status" => "done",
       "error" => nil,
       "added" => 12,
-      "finishedAt" => "2026-10-10T08:00:00Z"
+      "finished_at" => "2026-10-10T08:00:00Z"
     },
-    "keywordDataAvailable" => true,
-    "updatedAt" => "2026-10-10T09:00:00Z"
+    "keyword_data_available" => true,
+    "updated_at" => "2026-10-10T09:00:00Z"
   }
 
   @keyword %{
     "id" => "kw_1",
     "keyword" => "social media calendar",
-    "searchVolume" => 4400,
+    "search_volume" => 4400,
     "difficulty" => 38,
     "cpc" => 1.2,
     "intent" => "informational",
     "source" => "provider",
     "status" => "planned",
-    "plannedFor" => "2026-10-14",
-    "fitReason" => "Buyers comparing tools",
-    "createdAt" => "2026-10-10T09:00:00Z"
+    "planned_for" => "2026-10-14",
+    "fit_reason" => "Buyers comparing tools",
+    "created_at" => "2026-10-10T09:00:00Z"
   }
 
   @article %{
@@ -57,24 +57,24 @@ defmodule FoPost.BlogTest do
     "slug" => "plan-a-month-of-content",
     "keyword" => "social media calendar",
     "excerpt" => nil,
-    "metaTitle" => nil,
-    "metaDescription" => nil,
-    "featuredImage" => %{
-      "mediaId" => "med_1",
+    "meta_title" => nil,
+    "meta_description" => nil,
+    "featured_image" => %{
+      "media_id" => "med_1",
       "url" => "https://cdn.test/a.jpg",
       "alt" => "Calendar"
     },
     "tags" => ["planning"],
-    "wordCount" => 0,
+    "word_count" => 0,
     "status" => "queued",
     "origin" => "user",
-    "reviewUntil" => nil,
-    "publishAt" => nil,
-    "publishedAt" => nil,
-    "publishedUrl" => nil,
+    "review_until" => nil,
+    "publish_at" => nil,
+    "published_at" => nil,
+    "published_url" => nil,
     "error" => nil,
-    "createdAt" => "2026-10-10T09:00:00Z",
-    "updatedAt" => "2026-10-10T09:00:00Z"
+    "created_at" => "2026-10-10T09:00:00Z",
+    "updated_at" => "2026-10-10T09:00:00Z"
   }
 
   setup do
@@ -82,12 +82,12 @@ defmodule FoPost.BlogTest do
   end
 
   describe "settings" do
-    test "settings reads with the workspace as camelCase", %{bypass: bypass} do
+    test "settings reads snake_case with workspace_id on the query", %{bypass: bypass} do
       Bypass.expect_once(bypass, "GET", "/v1/blog/settings", fn conn ->
         conn = Plug.Conn.fetch_query_params(conn)
-        assert conn.query_params == %{"workspaceId" => @ws}
+        assert conn.query_params == %{"workspace_id" => @ws}
 
-        TestSupport.json(conn, 200, %{"data" => @settings})
+        TestSupport.json(conn, 200, @settings)
       end)
 
       assert {:ok, settings} = Blog.settings(TestSupport.client(bypass), @ws)
@@ -114,7 +114,7 @@ defmodule FoPost.BlogTest do
                  "avoidTopics" => nil
                }
 
-        TestSupport.json(conn, 200, %{"data" => @settings})
+        TestSupport.json(conn, 200, @settings)
       end)
 
       assert {:ok, _settings} =
@@ -136,7 +136,7 @@ defmodule FoPost.BlogTest do
                  "brandVoiceId" => nil
                }
 
-        TestSupport.json(conn, 200, %{"data" => @settings, "websiteSecret" => "whsec_once"})
+        TestSupport.json(conn, 200, Map.put(@settings, "website_secret", "whsec_once"))
       end)
 
       assert {:ok, settings} =
@@ -155,7 +155,7 @@ defmodule FoPost.BlogTest do
         {:ok, raw, conn} = Plug.Conn.read_body(conn)
         assert Jason.decode!(raw) == %{"workspaceId" => @ws}
 
-        TestSupport.json(conn, 200, %{"data" => %{"websiteSecret" => "whsec_new"}})
+        TestSupport.json(conn, 200, %{"website_secret" => "whsec_new"})
       end)
 
       assert {:ok, "whsec_new"} = Blog.rotate_website_secret(TestSupport.client(bypass), @ws)
@@ -163,7 +163,7 @@ defmodule FoPost.BlogTest do
 
     test "test_website reports how the site answered", %{bypass: bypass} do
       Bypass.expect_once(bypass, "POST", "/v1/blog/settings/website-test", fn conn ->
-        TestSupport.json(conn, 200, %{"data" => %{"ok" => true, "status" => 200, "error" => nil}})
+        TestSupport.json(conn, 200, %{"http_status" => 200})
       end)
 
       assert {:ok, result} = Blog.test_website(TestSupport.client(bypass), @ws)
@@ -178,7 +178,7 @@ defmodule FoPost.BlogTest do
         conn = Plug.Conn.fetch_query_params(conn)
 
         assert conn.query_params == %{
-                 "workspaceId" => @ws,
+                 "workspace_id" => @ws,
                  "status" => "planned,suggested",
                  "limit" => "50"
                }
@@ -235,7 +235,7 @@ defmodule FoPost.BlogTest do
         {:ok, raw, conn} = Plug.Conn.read_body(conn)
         assert Jason.decode!(raw) == %{"workspaceId" => @ws, "seeds" => ["scheduling"]}
 
-        TestSupport.json(conn, 202, %{"data" => %{"status" => "queued"}})
+        TestSupport.json(conn, 202, %{"status" => "queued"})
       end)
 
       assert {:ok, "queued"} =
@@ -267,7 +267,7 @@ defmodule FoPost.BlogTest do
                  "plannedFor" => "2026-10-14"
                }
 
-        TestSupport.json(conn, 201, %{"data" => @keyword})
+        TestSupport.json(conn, 201, @keyword)
       end)
 
       assert {:ok, keyword} =
@@ -283,12 +283,12 @@ defmodule FoPost.BlogTest do
          %{bypass: bypass} do
       Bypass.expect_once(bypass, "PATCH", "/v1/blog/keywords/kw_1", fn conn ->
         conn = Plug.Conn.fetch_query_params(conn)
-        assert conn.query_params == %{"workspaceId" => @ws}
+        assert conn.query_params == %{"workspace_id" => @ws}
 
         {:ok, raw, conn} = Plug.Conn.read_body(conn)
         assert Jason.decode!(raw) == %{"status" => "dismissed", "plannedFor" => nil}
 
-        TestSupport.json(conn, 200, %{"data" => Map.put(@keyword, "status", "dismissed")})
+        TestSupport.json(conn, 200, Map.put(@keyword, "status", "dismissed"))
       end)
 
       assert {:ok, keyword} =
@@ -302,7 +302,7 @@ defmodule FoPost.BlogTest do
 
     test "delete_keyword is a 204", %{bypass: bypass} do
       Bypass.expect_once(bypass, "DELETE", "/v1/blog/keywords/kw_1", fn conn ->
-        assert conn.query_string == "workspaceId=#{@ws}"
+        assert conn.query_string == "workspace_id=#{@ws}"
         Plug.Conn.resp(conn, 204, "")
       end)
 
@@ -314,7 +314,7 @@ defmodule FoPost.BlogTest do
     test "list_articles filters by status", %{bypass: bypass} do
       Bypass.expect_once(bypass, "GET", "/v1/blog/articles", fn conn ->
         conn = Plug.Conn.fetch_query_params(conn)
-        assert conn.query_params == %{"workspaceId" => @ws, "status" => "draft"}
+        assert conn.query_params == %{"workspace_id" => @ws, "status" => "draft"}
 
         TestSupport.json(conn, 200, %{"data" => [@article]})
       end)
@@ -337,7 +337,7 @@ defmodule FoPost.BlogTest do
                  "instructions" => "Lead with the calendar view."
                }
 
-        TestSupport.json(conn, 202, %{"data" => @article})
+        TestSupport.json(conn, 202, @article)
       end)
 
       assert {:ok, article} =
@@ -351,20 +351,20 @@ defmodule FoPost.BlogTest do
 
     test "get_article carries the body and images", %{bypass: bypass} do
       Bypass.expect_once(bypass, "GET", "/v1/blog/articles/art_1", fn conn ->
-        assert conn.query_string == "workspaceId=#{@ws}"
+        assert conn.query_string == "workspace_id=#{@ws}"
 
         full =
           Map.merge(@article, %{
             "status" => "draft",
-            "wordCount" => 1200,
+            "word_count" => 1200,
             "instructions" => nil,
             "outline" => ["Why plan", "How to plan"],
             "brief" => %{"sources" => []},
-            "bodyMarkdown" => "# Plan",
-            "bodyHtml" => "<h1>Plan</h1>",
+            "body_markdown" => "# Plan",
+            "body_html" => "<h1>Plan</h1>",
             "images" => [
               %{
-                "mediaId" => "med_2",
+                "media_id" => "med_2",
                 "url" => "https://cdn.test/b.jpg",
                 "alt" => "Grid",
                 "position" => 1
@@ -372,7 +372,7 @@ defmodule FoPost.BlogTest do
             ]
           })
 
-        TestSupport.json(conn, 200, %{"data" => full})
+        TestSupport.json(conn, 200, full)
       end)
 
       assert {:ok, article} = Blog.get_article(TestSupport.client(bypass), @ws, "art_1")
@@ -385,7 +385,7 @@ defmodule FoPost.BlogTest do
 
     test "update_article sends the camelCase patch", %{bypass: bypass} do
       Bypass.expect_once(bypass, "PATCH", "/v1/blog/articles/art_1", fn conn ->
-        assert conn.query_string == "workspaceId=#{@ws}"
+        assert conn.query_string == "workspace_id=#{@ws}"
         {:ok, raw, conn} = Plug.Conn.read_body(conn)
 
         assert Jason.decode!(raw) == %{
@@ -393,7 +393,7 @@ defmodule FoPost.BlogTest do
                  "publishAt" => "2026-10-20T08:00:00Z"
                }
 
-        TestSupport.json(conn, 200, %{"data" => Map.put(@article, "status", "scheduled")})
+        TestSupport.json(conn, 200, Map.put(@article, "status", "scheduled"))
       end)
 
       assert {:ok, article} =
@@ -419,7 +419,7 @@ defmodule FoPost.BlogTest do
 
     test "publish_article without a target is a 409 no_target", %{bypass: bypass} do
       Bypass.expect_once(bypass, "POST", "/v1/blog/articles/art_1/publish", fn conn ->
-        assert conn.query_string == "workspaceId=#{@ws}"
+        assert conn.query_string == "workspace_id=#{@ws}"
         TestSupport.json(conn, 409, %{"error" => "no_target", "message" => "No target"})
       end)
 
@@ -429,8 +429,8 @@ defmodule FoPost.BlogTest do
 
     test "submit_article moves the article to review", %{bypass: bypass} do
       Bypass.expect_once(bypass, "POST", "/v1/blog/articles/art_1/submit", fn conn ->
-        assert conn.query_string == "workspaceId=#{@ws}"
-        TestSupport.json(conn, 200, %{"data" => Map.put(@article, "status", "in_review")})
+        assert conn.query_string == "workspace_id=#{@ws}"
+        TestSupport.json(conn, 200, Map.put(@article, "status", "in_review"))
       end)
 
       assert {:ok, article} = Blog.submit_article(TestSupport.client(bypass), @ws, "art_1")
@@ -449,8 +449,8 @@ defmodule FoPost.BlogTest do
     test "regenerate, publish and reject post to the action path", %{bypass: bypass} do
       for action <- ["regenerate", "publish", "reject"] do
         Bypass.expect_once(bypass, "POST", "/v1/blog/articles/art_1/#{action}", fn conn ->
-          assert conn.query_string == "workspaceId=#{@ws}"
-          TestSupport.json(conn, 202, %{"data" => Map.put(@article, "status", "publishing")})
+          assert conn.query_string == "workspace_id=#{@ws}"
+          TestSupport.json(conn, 202, Map.put(@article, "status", "publishing"))
         end)
       end
 
@@ -463,7 +463,7 @@ defmodule FoPost.BlogTest do
 
     test "delete_article is a 204", %{bypass: bypass} do
       Bypass.expect_once(bypass, "DELETE", "/v1/blog/articles/art_1", fn conn ->
-        assert conn.query_string == "workspaceId=#{@ws}"
+        assert conn.query_string == "workspace_id=#{@ws}"
         Plug.Conn.resp(conn, 204, "")
       end)
 
