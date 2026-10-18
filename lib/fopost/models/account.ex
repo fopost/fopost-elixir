@@ -975,3 +975,30 @@ defmodule FoPost.RedditFlair do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.XFollowResult do
+  @moduledoc """
+  The answer to following or unfollowing an X user from an account: `:following` is the
+  state now in effect.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:account_id, :user_id, :following, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      account_id: fields["account_id"],
+      user_id: fields["user_id"],
+      following: fields["following"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

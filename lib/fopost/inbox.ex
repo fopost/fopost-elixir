@@ -282,6 +282,42 @@ defmodule FoPost.Inbox do
   def unlike(client, id), do: action(client, id, "unlike")
 
   @doc """
+  Reposts an item to the account's own timeline (X). Only where `:can_repost` is true.
+  Also needs the `publish` scope. An X account connected before reposts were supported
+  answers `409 reconnect_required`; a spent X balance answers `402 platform_balance_spent`.
+
+  Wraps the API's `repostInboxItem` operation.
+  """
+  @spec repost(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def repost(client, id), do: action(client, id, "repost")
+
+  @doc """
+  Removes our repost. Only where `:can_repost` is true. Also needs the `publish` scope.
+
+  Wraps the API's `unrepostInboxItem` operation.
+  """
+  @spec unrepost(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def unrepost(client, id), do: action(client, id, "unrepost")
+
+  @doc """
+  Bookmarks an item on the account (X). Only where `:can_bookmark` is true. Also needs
+  the `publish` scope.
+
+  Wraps the API's `bookmarkInboxItem` operation.
+  """
+  @spec bookmark(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def bookmark(client, id), do: action(client, id, "bookmark")
+
+  @doc """
+  Removes our bookmark. Only where `:can_bookmark` is true. Also needs the `publish` scope.
+
+  Wraps the API's `unbookmarkInboxItem` operation.
+  """
+  @spec unbookmark(Client.t(), String.t()) ::
+          {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
+  def unbookmark(client, id), do: action(client, id, "unbookmark")
+
+  @doc """
   Votes an item up or down where the network ranks by votes (Reddit), or takes an earlier
   vote back with `"none"`.
 
@@ -475,6 +511,18 @@ defmodule FoPost.Inbox do
 
   @doc "Same as `unlike/2`, but raises `FoPost.Error`."
   def unlike!(client, id), do: Result.unwrap!(unlike(client, id))
+
+  @doc "Same as `repost/2`, but raises `FoPost.Error`."
+  def repost!(client, id), do: Result.unwrap!(repost(client, id))
+
+  @doc "Same as `unrepost/2`, but raises `FoPost.Error`."
+  def unrepost!(client, id), do: Result.unwrap!(unrepost(client, id))
+
+  @doc "Same as `bookmark/2`, but raises `FoPost.Error`."
+  def bookmark!(client, id), do: Result.unwrap!(bookmark(client, id))
+
+  @doc "Same as `unbookmark/2`, but raises `FoPost.Error`."
+  def unbookmark!(client, id), do: Result.unwrap!(unbookmark(client, id))
 
   @doc "Same as `vote/3`, but raises `FoPost.Error`."
   def vote!(client, id, direction), do: Result.unwrap!(vote(client, id, direction))
