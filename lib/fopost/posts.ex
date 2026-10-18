@@ -265,6 +265,8 @@ defmodule FoPost.Posts do
   Re-sends the deliveries that failed, leaving the successful ones alone.
 
   Options: `:account_ids`, `:include_published`.
+
+  Wraps the API's `retryPost` operation.
   """
   @spec retry(Client.t(), String.t(), keyword()) ::
           {:ok, PublishResult.t()} | {:error, FoPost.Error.t()}
@@ -281,6 +283,8 @@ defmodule FoPost.Posts do
 
   @doc """
   Checks a post against every platform it targets, without publishing.
+
+  Wraps the API's `preflightPost` operation.
   """
   @spec preflight(Client.t(), String.t()) ::
           {:ok, PreflightResult.t()} | {:error, FoPost.Error.t()}
@@ -292,6 +296,8 @@ defmodule FoPost.Posts do
 
   @doc """
   The current delivery record for each account the post targets.
+
+  Wraps the API's `listDeliveries` operation.
   """
   @spec deliveries(Client.t(), String.t()) :: {:ok, [Delivery.t()]} | {:error, FoPost.Error.t()}
   def deliveries(client, id) do
@@ -302,6 +308,8 @@ defmodule FoPost.Posts do
 
   @doc """
   Every publish attempt made for a post, newest first.
+
+  Wraps the API's `listPostPublishRuns` operation.
   """
   @spec publish_runs(Client.t(), String.t()) ::
           {:ok, [PublishRun.t()]} | {:error, FoPost.Error.t()}
@@ -313,6 +321,8 @@ defmodule FoPost.Posts do
 
   @doc """
   A post's performance across the platforms it reached.
+
+  Wraps the API's `getPostAnalytics` operation.
   """
   @spec analytics(Client.t(), String.t()) :: {:ok, PostAnalytics.t()} | {:error, FoPost.Error.t()}
   def analytics(client, id) do

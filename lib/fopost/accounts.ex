@@ -151,6 +151,8 @@ defmodule FoPost.Accounts do
 
   @doc """
   Checks an account's stored credentials against the platform.
+
+  Wraps the API's `validateAccountCredentials` operation.
   """
   @spec validate(Client.t(), String.t()) ::
           {:ok, ValidationResult.t()} | {:error, FoPost.Error.t()}
@@ -221,6 +223,8 @@ defmodule FoPost.Accounts do
   An account's stored follower snapshots, newest first.
 
   `:limit` caps how many come back; leaving it out keeps the API's own default.
+
+  Wraps the API's `getAccountAnalyticsHistory` operation.
   """
   @spec analytics(Client.t(), String.t(), keyword()) ::
           {:ok, AccountAnalytics.t()} | {:error, FoPost.Error.t()}
@@ -421,6 +425,8 @@ defmodule FoPost.Accounts do
   The prompts Messenger or Instagram shows before the first message.
 
   A network without ice breakers answers `400`.
+
+  Wraps the API's `getIceBreakers` operation.
   """
   @spec ice_breakers(Client.t(), String.t()) ::
           {:ok, [MetaIceBreaker.t()]} | {:error, FoPost.Error.t()}
@@ -435,6 +441,8 @@ defmodule FoPost.Accounts do
 
   `ice_breakers` is a list of maps (or `FoPost.MetaIceBreaker` structs) with `:question`
   and `:payload`.
+
+  Wraps the API's `setIceBreakers` operation.
   """
   @spec set_ice_breakers(Client.t(), String.t(), [map()]) ::
           {:ok, [MetaIceBreaker.t()]} | {:error, FoPost.Error.t()}
@@ -447,7 +455,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "Clears the ice breakers."
+  @doc """
+  Clears the ice breakers.
+
+  Wraps the API's `deleteIceBreakers` operation.
+  """
   @spec delete_ice_breakers(Client.t(), String.t()) ::
           {:ok, [MetaIceBreaker.t()]} | {:error, FoPost.Error.t()}
   def delete_ice_breakers(client, id) do
@@ -458,6 +470,8 @@ defmodule FoPost.Accounts do
 
   @doc """
   The always-visible Messenger menu. Facebook Pages only; other networks answer `400`.
+
+  Wraps the API's `getPersistentMenu` operation.
   """
   @spec persistent_menu(Client.t(), String.t()) ::
           {:ok, [MetaPersistentMenuEntry.t()]} | {:error, FoPost.Error.t()}
@@ -472,6 +486,8 @@ defmodule FoPost.Accounts do
 
   Each entry is a map with `:locale` and `:call_to_actions`; each item is a map with
   `:type` (`"postback"` or `"web_url"`), `:title`, and either `:payload` or `:url`.
+
+  Wraps the API's `setPersistentMenu` operation.
   """
   @spec set_persistent_menu(Client.t(), String.t(), [map()]) ::
           {:ok, [MetaPersistentMenuEntry.t()]} | {:error, FoPost.Error.t()}
@@ -484,7 +500,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "Clears the menu."
+  @doc """
+  Clears the menu.
+
+  Wraps the API's `deletePersistentMenu` operation.
+  """
   @spec delete_persistent_menu(Client.t(), String.t()) ::
           {:ok, [MetaPersistentMenuEntry.t()]} | {:error, FoPost.Error.t()}
   def delete_persistent_menu(client, id) do
@@ -495,6 +515,8 @@ defmodule FoPost.Accounts do
 
   @doc """
   The text shown before a Messenger conversation starts. Facebook Pages only.
+
+  Wraps the API's `getGreeting` operation.
   """
   @spec greeting(Client.t(), String.t()) ::
           {:ok, [MetaGreetingText.t()]} | {:error, FoPost.Error.t()}
@@ -509,6 +531,8 @@ defmodule FoPost.Accounts do
 
   Each entry is a map with `:text` and an optional `:locale`, which defaults to
   `"default"`.
+
+  Wraps the API's `setGreeting` operation.
   """
   @spec set_greeting(Client.t(), String.t(), [map()]) ::
           {:ok, [MetaGreetingText.t()]} | {:error, FoPost.Error.t()}
@@ -520,7 +544,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "Clears the greeting."
+  @doc """
+  Clears the greeting.
+
+  Wraps the API's `deleteGreeting` operation.
+  """
   @spec delete_greeting(Client.t(), String.t()) ::
           {:ok, [MetaGreetingText.t()]} | {:error, FoPost.Error.t()}
   def delete_greeting(client, id) do
@@ -554,6 +582,8 @@ defmodule FoPost.Accounts do
 
   A 409 whose `code` is `"webhook_connection"` means the account posts through a webhook;
   upgrade it to the bot first. The same applies to every other Discord function here.
+
+  Wraps the API's `listDiscordChannels` operation.
   """
   @spec discord_channels(Client.t(), String.t()) ::
           {:ok, [DiscordChannel.t()]} | {:error, FoPost.Error.t()}
@@ -565,6 +595,8 @@ defmodule FoPost.Accounts do
 
   @doc """
   Moves the account to another channel in the same server.
+
+  Wraps the API's `switchDiscordChannel` operation.
   """
   @spec switch_discord_channel(Client.t(), String.t(), String.t()) ::
           {:ok, DiscordChannel.t()} | {:error, FoPost.Error.t()}
@@ -579,6 +611,8 @@ defmodule FoPost.Accounts do
 
   @doc """
   The nickname and avatar the bot wears in the server.
+
+  Wraps the API's `getDiscordIdentity` operation.
   """
   @spec discord_identity(Client.t(), String.t()) ::
           {:ok, DiscordIdentity.t()} | {:error, FoPost.Error.t()}
@@ -593,6 +627,8 @@ defmodule FoPost.Accounts do
 
   Options: `:username` (1-32 characters) and `:avatar_url` (an http(s) URL). A key left
   out keeps its value and `nil` clears it.
+
+  Wraps the API's `updateDiscordIdentity` operation.
   """
   @spec update_discord_identity(Client.t(), String.t(), keyword()) ::
           {:ok, DiscordIdentity.t()} | {:error, FoPost.Error.t()}
@@ -606,6 +642,8 @@ defmodule FoPost.Accounts do
 
   @doc """
   Pinned messages in the account's channel.
+
+  Wraps the API's `listDiscordPins` operation.
   """
   @spec discord_pins(Client.t(), String.t()) ::
           {:ok, [DiscordMessage.t()]} | {:error, FoPost.Error.t()}
@@ -615,7 +653,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "Removes a message from the account's channel."
+  @doc """
+  Removes a message from the account's channel.
+
+  Wraps the API's `deleteDiscordMessage` operation.
+  """
   @spec delete_discord_message(Client.t(), String.t(), String.t()) ::
           {:ok, DiscordAck.t()} | {:error, FoPost.Error.t()}
   def delete_discord_message(client, id, message_id) do
@@ -668,6 +710,8 @@ defmodule FoPost.Accounts do
 
   @doc """
   Sends one message to a member of the server.
+
+  Wraps the API's `sendDiscordDm` operation.
   """
   @spec send_discord_direct_message(Client.t(), String.t(), String.t(), String.t()) ::
           {:ok, DiscordMessageRef.t()} | {:error, FoPost.Error.t()}
@@ -679,7 +723,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "The server's scheduled events."
+  @doc """
+  The server's scheduled events.
+
+  Wraps the API's `listDiscordEvents` operation.
+  """
   @spec discord_events(Client.t(), String.t()) ::
           {:ok, [DiscordScheduledEvent.t()]} | {:error, FoPost.Error.t()}
   def discord_events(client, id) do
@@ -688,7 +736,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "One scheduled event."
+  @doc """
+  One scheduled event.
+
+  Wraps the API's `getDiscordEvent` operation.
+  """
   @spec discord_event(Client.t(), String.t(), String.t()) ::
           {:ok, DiscordScheduledEvent.t()} | {:error, FoPost.Error.t()}
   def discord_event(client, id, event_id) do
@@ -703,6 +755,8 @@ defmodule FoPost.Accounts do
   Options: `:name`, `:start_time`, `:end_time`, `:description`, `:channel_id` and
   `:location`. Give a `:channel_id` (a voice or stage channel), or a `:location` with an
   `:end_time`.
+
+  Wraps the API's `createDiscordEvent` operation.
   """
   @spec create_discord_event(Client.t(), String.t(), keyword()) ::
           {:ok, DiscordScheduledEvent.t()} | {:error, FoPost.Error.t()}
@@ -716,6 +770,8 @@ defmodule FoPost.Accounts do
   @doc """
   Changes a scheduled event. A key left out is left as it is; `:status` is `"scheduled"`,
   `"active"`, `"completed"` or `"canceled"`.
+
+  Wraps the API's `updateDiscordEvent` operation.
   """
   @spec update_discord_event(Client.t(), String.t(), String.t(), keyword()) ::
           {:ok, DiscordScheduledEvent.t()} | {:error, FoPost.Error.t()}
@@ -727,7 +783,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "Removes a scheduled event."
+  @doc """
+  Removes a scheduled event.
+
+  Wraps the API's `deleteDiscordEvent` operation.
+  """
   @spec delete_discord_event(Client.t(), String.t(), String.t()) ::
           {:ok, DiscordAck.t()} | {:error, FoPost.Error.t()}
   def delete_discord_event(client, id, event_id) do
@@ -737,6 +797,8 @@ defmodule FoPost.Accounts do
   @doc """
   The server's roster, or the members matching `:q` by name prefix. Options: `:q` and
   `:limit`.
+
+  Wraps the API's `listDiscordMembers` operation.
   """
   @spec discord_members(Client.t(), String.t(), keyword()) ::
           {:ok, [DiscordMember.t()]} | {:error, FoPost.Error.t()}
@@ -748,7 +810,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "One member of the server."
+  @doc """
+  One member of the server.
+
+  Wraps the API's `getDiscordMember` operation.
+  """
   @spec discord_member(Client.t(), String.t(), String.t()) ::
           {:ok, DiscordMember.t()} | {:error, FoPost.Error.t()}
   def discord_member(client, id, member_id) do
@@ -759,7 +825,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "The server's roles, highest first."
+  @doc """
+  The server's roles, highest first.
+
+  Wraps the API's `listDiscordRoles` operation.
+  """
   @spec discord_roles(Client.t(), String.t()) ::
           {:ok, [DiscordRole.t()]} | {:error, FoPost.Error.t()}
   def discord_roles(client, id) do
@@ -771,6 +841,8 @@ defmodule FoPost.Accounts do
   @doc """
   Adds a role to the server. Options: `:name`, `:color`, `:hoist`, `:mentionable` and
   `:permissions`.
+
+  Wraps the API's `createDiscordRole` operation.
   """
   @spec create_discord_role(Client.t(), String.t(), keyword()) ::
           {:ok, DiscordRole.t()} | {:error, FoPost.Error.t()}
@@ -781,7 +853,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "Changes a role on the server; a key left out is left as it is."
+  @doc """
+  Changes a role on the server; a key left out is left as it is.
+
+  Wraps the API's `updateDiscordRole` operation.
+  """
   @spec update_discord_role(Client.t(), String.t(), String.t(), keyword()) ::
           {:ok, DiscordRole.t()} | {:error, FoPost.Error.t()}
   def update_discord_role(client, id, role_id, opts) do
@@ -792,7 +868,11 @@ defmodule FoPost.Accounts do
     end
   end
 
-  @doc "Removes a role from the server."
+  @doc """
+  Removes a role from the server.
+
+  Wraps the API's `deleteDiscordRole` operation.
+  """
   @spec delete_discord_role(Client.t(), String.t(), String.t()) ::
           {:ok, DiscordAck.t()} | {:error, FoPost.Error.t()}
   def delete_discord_role(client, id, role_id) do
