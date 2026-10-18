@@ -30,6 +30,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   The profile on the number, plus its quality rating and messaging limit tier.
+
+  Wraps the API's `getWhatsappProfile` operation.
   """
   @spec profile(Client.t(), String.t()) ::
           {:ok, WhatsappProfile.t()} | {:error, FoPost.Error.t()}
@@ -44,6 +46,8 @@ defmodule FoPost.Whatsapp do
 
   Takes `:about`, `:address`, `:description`, `:vertical`, `:websites` and
   `:profile_picture_media_id`.
+
+  Wraps the API's `updateWhatsappProfile` operation.
   """
   @spec update_profile(Client.t(), String.t(), keyword()) ::
           {:ok, WhatsappProfile.t()} | {:error, FoPost.Error.t()}
@@ -67,6 +71,8 @@ defmodule FoPost.Whatsapp do
   @doc """
   Files a display name change for review. A review, not a write: the number keeps
   its old name until the review passes.
+
+  Wraps the API's `requestWhatsappDisplayName` operation.
   """
   @spec request_display_name(Client.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, FoPost.Error.t()}
@@ -81,6 +87,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Sets the public username on the number.
+
+  Wraps the API's `setWhatsappUsername` operation.
   """
   @spec set_username(Client.t(), String.t(), String.t()) ::
           {:ok, WhatsappProfile.t()} | {:error, FoPost.Error.t()}
@@ -98,6 +106,8 @@ defmodule FoPost.Whatsapp do
   @doc """
   Every template on the account, with the review status the platform assigned.
   Cursor paginated with `:after`.
+
+  Wraps the API's `listWhatsappTemplates` operation.
   """
   @spec templates(Client.t(), String.t(), keyword()) ::
           {:ok, [WhatsappTemplate.t()]} | {:error, FoPost.Error.t()}
@@ -112,6 +122,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   The pre-written templates the platform offers, for adapting instead of drafting.
+
+  Wraps the API's `listWhatsappTemplateLibrary` operation.
   """
   @spec template_library(Client.t(), String.t(), keyword()) ::
           {:ok, [map()]} | {:error, FoPost.Error.t()}
@@ -126,6 +138,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   One template and the review status it currently has.
+
+  Wraps the API's `getWhatsappTemplate` operation.
   """
   @spec template(Client.t(), String.t(), String.t()) ::
           {:ok, WhatsappTemplate.t()} | {:error, FoPost.Error.t()}
@@ -143,6 +157,8 @@ defmodule FoPost.Whatsapp do
   `:allow_category_change`. The result carries the status the platform assigned,
   which is `"PENDING"` on a normal submission — nothing marks a template approved
   but the platform.
+
+  Wraps the API's `createWhatsappTemplate` operation.
   """
   @spec create_template(Client.t(), String.t(), keyword()) ::
           {:ok, WhatsappTemplate.t()} | {:error, FoPost.Error.t()}
@@ -160,6 +176,8 @@ defmodule FoPost.Whatsapp do
   Creates a template from one of the platform's library entries.
 
   Required: `:library_template_name`, `:name`, `:language`, `:category`.
+
+  Wraps the API's `importWhatsappTemplate` operation.
   """
   @spec import_template(Client.t(), String.t(), keyword()) ::
           {:ok, WhatsappTemplate.t()} | {:error, FoPost.Error.t()}
@@ -181,6 +199,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Edits a template's `:category` or `:components`. The name cannot change.
+
+  Wraps the API's `updateWhatsappTemplate` operation.
   """
   @spec update_template(Client.t(), String.t(), String.t(), keyword()) ::
           {:ok, WhatsappTemplate.t()} | {:error, FoPost.Error.t()}
@@ -195,6 +215,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Removes a template. The `:name` is required: it is what the platform deletes by.
+
+  Wraps the API's `deleteWhatsappTemplate` operation.
   """
   @spec delete_template(Client.t(), String.t(), String.t(), keyword()) ::
           {:ok, map()} | {:error, FoPost.Error.t()}
@@ -211,6 +233,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   The groups this number created.
+
+  Wraps the API's `listWhatsappGroups` operation.
   """
   @spec groups(Client.t(), String.t()) ::
           {:ok, [WhatsappGroup.t()]} | {:error, FoPost.Error.t()}
@@ -225,6 +249,8 @@ defmodule FoPost.Whatsapp do
 
   Participation is invite-only: no endpoint adds someone, so the invite link is
   what you send them.
+
+  Wraps the API's `createWhatsappGroup` operation.
   """
   @spec create_group(Client.t(), String.t(), keyword()) ::
           {:ok, WhatsappGroup.t()} | {:error, FoPost.Error.t()}
@@ -238,6 +264,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   One group and its participant count.
+
+  Wraps the API's `getWhatsappGroup` operation.
   """
   @spec group(Client.t(), String.t(), String.t()) ::
           {:ok, WhatsappGroup.t()} | {:error, FoPost.Error.t()}
@@ -249,6 +277,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Changes a group's `:subject` or `:description`.
+
+  Wraps the API's `updateWhatsappGroup` operation.
   """
   @spec update_group(Client.t(), String.t(), String.t(), keyword()) ::
           {:ok, WhatsappGroup.t()} | {:error, FoPost.Error.t()}
@@ -263,6 +293,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Removes the group.
+
+  Wraps the API's `deleteWhatsappGroup` operation.
   """
   @spec delete_group(Client.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, FoPost.Error.t()}
@@ -316,6 +348,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   The numbers this account has blocked. Cursor paginated with `:after`.
+
+  Wraps the API's `listWhatsappBlocked` operation.
   """
   @spec blocked(Client.t(), String.t(), keyword()) ::
           {:ok, [String.t()]} | {:error, FoPost.Error.t()}
@@ -330,6 +364,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Blocks up to 100 numbers, and names the ones the platform refused.
+
+  Wraps the API's `blockWhatsappUsers` operation.
   """
   @spec block_users(Client.t(), String.t(), [String.t()]) ::
           {:ok, WhatsappBlockResult.t()} | {:error, FoPost.Error.t()}
@@ -343,6 +379,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Unblocks up to 100 numbers.
+
+  Wraps the API's `unblockWhatsappUsers` operation.
   """
   @spec unblock_users(Client.t(), String.t(), [String.t()]) ::
           {:ok, WhatsappBlockResult.t()} | {:error, FoPost.Error.t()}
@@ -359,6 +397,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Whether the cart and catalog show on the number, and which catalog is linked.
+
+  Wraps the API's `getWhatsappCommerce` operation.
   """
   @spec commerce_settings(Client.t(), String.t()) ::
           {:ok, WhatsappCommerceSettings.t()} | {:error, FoPost.Error.t()}
@@ -371,6 +411,8 @@ defmodule FoPost.Whatsapp do
   @doc """
   Turns the cart or the catalog on or off. Takes `:cart_enabled` and
   `:catalog_visible`.
+
+  Wraps the API's `updateWhatsappCommerce` operation.
   """
   @spec update_commerce_settings(Client.t(), String.t(), keyword()) ::
           {:ok, WhatsappCommerceSettings.t()} | {:error, FoPost.Error.t()}
@@ -389,6 +431,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Points the number at a catalog the customer already owns.
+
+  Wraps the API's `linkWhatsappCatalog` operation.
   """
   @spec link_catalog(Client.t(), String.t(), String.t()) ::
           {:ok, WhatsappCommerceSettings.t()} | {:error, FoPost.Error.t()}
@@ -405,6 +449,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   The in-chat forms on this account, with their validation errors.
+
+  Wraps the API's `listWhatsappFlows` operation.
   """
   @spec flows(Client.t(), String.t()) :: {:ok, [WhatsappFlow.t()]} | {:error, FoPost.Error.t()}
   def flows(client, account_id) do
@@ -415,6 +461,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   One flow and what the platform found wrong with it.
+
+  Wraps the API's `getWhatsappFlow` operation.
   """
   @spec flow(Client.t(), String.t(), String.t()) ::
           {:ok, WhatsappFlow.t()} | {:error, FoPost.Error.t()}
@@ -427,6 +475,8 @@ defmodule FoPost.Whatsapp do
   @doc """
   Creates a draft flow. Required: `:name`, `:categories`. Its screens are
   uploaded separately with `upload_flow_json/4`.
+
+  Wraps the API's `createWhatsappFlow` operation.
   """
   @spec create_flow(Client.t(), String.t(), keyword()) ::
           {:ok, WhatsappFlow.t()} | {:error, FoPost.Error.t()}
@@ -440,6 +490,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Changes a flow's `:name`, `:categories` or `:endpoint_uri`.
+
+  Wraps the API's `updateWhatsappFlow` operation.
   """
   @spec update_flow(Client.t(), String.t(), String.t(), keyword()) ::
           {:ok, WhatsappFlow.t()} | {:error, FoPost.Error.t()}
@@ -453,6 +505,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   Deletes a draft flow. A published flow is deprecated instead.
+
+  Wraps the API's `deleteWhatsappFlow` operation.
   """
   @spec delete_flow(Client.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, FoPost.Error.t()}
@@ -503,6 +557,8 @@ defmodule FoPost.Whatsapp do
 
   @doc """
   What people submitted through this account's flows, newest first.
+
+  Wraps the API's `listWhatsappFlowResponses` operation.
   """
   @spec flow_responses(Client.t(), String.t()) ::
           {:ok, [WhatsappFlowResponse.t()]} | {:error, FoPost.Error.t()}
@@ -515,6 +571,8 @@ defmodule FoPost.Whatsapp do
   @doc """
   Whether a business public key is registered, and how the platform judged its
   signature. The key itself is never returned.
+
+  Wraps the API's `getWhatsappEncryptionKey` operation.
   """
   @spec encryption_key_status(Client.t(), String.t()) ::
           {:ok, WhatsappEncryptionKeyStatus.t()} | {:error, FoPost.Error.t()}
@@ -528,6 +586,8 @@ defmodule FoPost.Whatsapp do
   @doc """
   Registers the public half of the key the platform encrypts a flow endpoint's
   payloads with. The private half stays with the customer.
+
+  Wraps the API's `setWhatsappEncryptionKey` operation.
   """
   @spec set_encryption_key(Client.t(), String.t(), String.t()) ::
           {:ok, WhatsappEncryptionKeyStatus.t()} | {:error, FoPost.Error.t()}
@@ -545,6 +605,8 @@ defmodule FoPost.Whatsapp do
   @doc """
   The account review and verification state, plus the number's quality rating,
   name status and messaging limit tier.
+
+  Wraps the API's `getWhatsappAccountEvents` operation.
   """
   @spec account_events(Client.t(), String.t()) :: {:ok, map()} | {:error, FoPost.Error.t()}
   def account_events(client, account_id) do

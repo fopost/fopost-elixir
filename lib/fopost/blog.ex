@@ -303,6 +303,8 @@ defmodule FoPost.Blog do
 
   @doc """
   Writes the article again from its brief. Needs the `ai` scope.
+
+  Wraps the API's `regenerateBlogArticle` operation.
   """
   @spec regenerate_article(Client.t(), String.t(), String.t()) ::
           {:ok, BlogArticle.t()} | {:error, FoPost.Error.t()}
@@ -313,6 +315,8 @@ defmodule FoPost.Blog do
   @doc """
   Moves a draft, failed or rejected article to `"in_review"`, ready for
   approval. Any other state answers `409`.
+
+  Wraps the API's `submitBlogArticle` operation.
   """
   @spec submit_article(Client.t(), String.t(), String.t()) ::
           {:ok, BlogArticle.t()} | {:error, FoPost.Error.t()}
@@ -333,6 +337,8 @@ defmodule FoPost.Blog do
 
   @doc """
   Marks a draft rejected so it never publishes.
+
+  Wraps the API's `rejectBlogArticle` operation.
   """
   @spec reject_article(Client.t(), String.t(), String.t()) ::
           {:ok, BlogArticle.t()} | {:error, FoPost.Error.t()}

@@ -334,6 +334,60 @@ defmodule FoPost.PostAnalytics do
   def from_map(_data), do: nil
 end
 
+defmodule FoPost.UnpublishDelivery do
+  @moduledoc """
+  One network a post was live on when it was taken down. `:removed` is `false` where the
+  network refused to take the post down.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:account_id, :platform, :removed, :raw]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      account_id: fields["account_id"],
+      platform: fields["platform"],
+      removed: fields["removed"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
+defmodule FoPost.UnpublishResult do
+  @moduledoc """
+  What `FoPost.Posts.unpublish/2` answers: the post's status afterwards and one row per
+  network.
+  """
+
+  alias FoPost.Model
+  alias FoPost.UnpublishDelivery
+
+  defstruct [:post_status, :raw, deliveries: []]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      post_status: fields["post_status"],
+      deliveries: Model.list(UnpublishDelivery, fields["deliveries"]),
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end
+
 defmodule FoPost.Message do
   @moduledoc """
   The bare acknowledgement several deletes and side-effect endpoints answer with.

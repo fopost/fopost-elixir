@@ -38,9 +38,10 @@ defmodule FoPost.Posts do
       )
 
   `:status` is `"draft"` or `"scheduled"`; a scheduled post needs `:schedule_at`, which
-  accepts a `DateTime`, a `NaiveDateTime`, or an ISO 8601 string. To send something out
-  now, create it and call `publish/3` — publishing answers when delivery is queued, not
-  when the post is live.
+  accepts a `DateTime`, a `NaiveDateTime`, or an ISO 8601 string. `schedule: "queue"`
+  drops the post into the next free slot of the posting queue (`FoPost.Queue`) instead.
+  To send something out now, create it and call `publish/3` — publishing answers when
+  delivery is queued, not when the post is live.
   """
 
   alias FoPost.Account
@@ -62,6 +63,7 @@ defmodule FoPost.Posts do
   alias FoPost.PublishResult
   alias FoPost.PublishRun
   alias FoPost.Result
+  alias FoPost.UnpublishResult
 
   @default_per_page 30
   @default_multipart_max_file_bytes 104_857_600
@@ -85,6 +87,7 @@ defmodule FoPost.Posts do
     :content_type,
     :artifact_type,
     :status,
+    :schedule,
     :repeatable,
     :repeatable_times,
     :repeatable_gap,
@@ -156,10 +159,10 @@ defmodule FoPost.Posts do
 
   Required: `:workspace_id`, `:content`, and `:accounts` or `:account_group_id` (the
   group's accounts are merged into `:accounts`, each account once). Optional: `:status`,
-  `:schedule_at`, `:content_type`, `:artifact_type`, `:labels`, `:title`,
-  `:internal_title`, `:summary`, `:auto_plug`, `:auto_plug_content`, `:settings`,
-  `:repeatable`, `:repeatable_times`, `:repeatable_gap`, `:repeatable_gap_unit`,
-  `:source_ids`, `:companion_of`, `:files`.
+  `:schedule_at`, `:schedule` (`"queue"`), `:content_type`, `:artifact_type`, `:labels`,
+  `:title`, `:internal_title`, `:summary`, `:auto_plug`, `:auto_plug_content`,
+  `:settings`, `:repeatable`, `:repeatable_times`, `:repeatable_gap`,
+  `:repeatable_gap_unit`, `:source_ids`, `:companion_of`, `:files`.
   """
   @spec create(Client.t(), keyword()) :: {:ok, Post.t()} | {:error, FoPost.Error.t()}
   def create(client, opts) do
@@ -265,6 +268,8 @@ defmodule FoPost.Posts do
   Re-sends the deliveries that failed, leaving the successful ones alone.
 
   Options: `:account_ids`, `:include_published`.
+
+  Wraps the API's `retryPost` operation.
   """
   @spec retry(Client.t(), String.t(), keyword()) ::
           {:ok, PublishResult.t()} | {:error, FoPost.Error.t()}
@@ -280,7 +285,23 @@ defmodule FoPost.Posts do
   end
 
   @doc """
+  Takes a published post down from every network it is live on.
+
+  One row per network comes back on `:deliveries`; `:removed` is `false` where the
+  network refused. Needs the `publish` scope.
+  """
+  @spec unpublish(Client.t(), String.t()) ::
+          {:ok, UnpublishResult.t()} | {:error, FoPost.Error.t()}
+  def unpublish(client, id) do
+    with {:ok, data} <- Client.request(client, :post, path(id) <> "/unpublish") do
+      {:ok, UnpublishResult.from_map(data)}
+    end
+  end
+
+  @doc """
   Checks a post against every platform it targets, without publishing.
+
+  Wraps the API's `preflightPost` operation.
   """
   @spec preflight(Client.t(), String.t()) ::
           {:ok, PreflightResult.t()} | {:error, FoPost.Error.t()}
@@ -292,6 +313,8 @@ defmodule FoPost.Posts do
 
   @doc """
   The current delivery record for each account the post targets.
+
+  Wraps the API's `listDeliveries` operation.
   """
   @spec deliveries(Client.t(), String.t()) :: {:ok, [Delivery.t()]} | {:error, FoPost.Error.t()}
   def deliveries(client, id) do
@@ -302,6 +325,8 @@ defmodule FoPost.Posts do
 
   @doc """
   Every publish attempt made for a post, newest first.
+
+  Wraps the API's `listPostPublishRuns` operation.
   """
   @spec publish_runs(Client.t(), String.t()) ::
           {:ok, [PublishRun.t()]} | {:error, FoPost.Error.t()}
@@ -313,6 +338,8 @@ defmodule FoPost.Posts do
 
   @doc """
   A post's performance across the platforms it reached.
+
+  Wraps the API's `getPostAnalytics` operation.
   """
   @spec analytics(Client.t(), String.t()) :: {:ok, PostAnalytics.t()} | {:error, FoPost.Error.t()}
   def analytics(client, id) do
@@ -422,6 +449,9 @@ defmodule FoPost.Posts do
 
   @doc "Same as `retry/3`, but raises `FoPost.Error`."
   def retry!(client, id, opts \\ []), do: Result.unwrap!(retry(client, id, opts))
+
+  @doc "Same as `unpublish/2`, but raises `FoPost.Error`."
+  def unpublish!(client, id), do: Result.unwrap!(unpublish(client, id))
 
   @doc "Same as `preflight/2`, but raises `FoPost.Error`."
   def preflight!(client, id), do: Result.unwrap!(preflight(client, id))

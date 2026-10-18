@@ -426,6 +426,8 @@ defmodule FoPost.Ads do
 
   @doc """
   Reads the delivery status and lifetime insights from Meta. Required: `:workspace_id`.
+
+  Wraps the API's `refreshAd` operation.
   """
   @spec refresh(Client.t(), String.t(), keyword()) :: {:ok, Ad.t()} | {:error, FoPost.Error.t()}
   def refresh(client, id, opts) do
@@ -778,6 +780,8 @@ defmodule FoPost.Ads do
   Answers a comment on an ad; answers the reply's id on the network. Needs the
   `publish` scope as well as `ads`. Required: `:workspace_id`, `:connection_id`,
   `:ad_id`, `:text`.
+
+  Wraps the API's `replyAdComment` operation.
   """
   @spec reply_to_comment(Client.t(), String.t(), keyword()) ::
           {:ok, String.t()} | {:error, FoPost.Error.t()}
@@ -793,6 +797,8 @@ defmodule FoPost.Ads do
   @doc """
   Hides or shows a comment on an ad. Needs the `publish` scope as well as `ads`.
   Required: `:workspace_id`, `:connection_id`, `:ad_id`, `:hidden`.
+
+  Wraps the API's `hideAdComment` operation.
   """
   @spec set_comment_hidden(Client.t(), String.t(), keyword()) ::
           :ok | {:error, FoPost.Error.t()}
@@ -2141,6 +2147,8 @@ defmodule FoPost.Ads do
   Holds the inventory the prediction priced. Also needs `publish`.
 
   Required: `:workspace_id`, `:connection_id`, `:ad_account_id`.
+
+  Wraps the API's `reserveReachFrequency` operation.
   """
   @spec reserve_reach_frequency(Client.t(), String.t(), keyword()) ::
           {:ok, ReachFrequencyPrediction.t()} | {:error, FoPost.Error.t()}

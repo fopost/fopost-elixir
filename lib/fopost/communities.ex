@@ -22,6 +22,8 @@ defmodule FoPost.Communities do
 
   @doc """
   Pulls the account's communities from the platform and stores them.
+
+  Wraps the API's `syncCommunities` operation.
   """
   @spec sync(Client.t(), String.t()) :: {:ok, [Community.t()]} | {:error, FoPost.Error.t()}
   def sync(client, account_id) do
@@ -32,6 +34,8 @@ defmodule FoPost.Communities do
 
   @doc """
   Looks a community up on the platform without linking it.
+
+  Wraps the API's `searchCommunities` operation.
   """
   @spec search(Client.t(), String.t(), String.t()) ::
           {:ok, [CommunitySearchResult.t()]} | {:error, FoPost.Error.t()}
@@ -48,6 +52,8 @@ defmodule FoPost.Communities do
 
   For the case where neither `search/3` nor `sync/2` surfaces it. Required:
   `:community_id`. Optional: `:name`.
+
+  Wraps the API's `addCommunityManually` operation.
   """
   @spec add(Client.t(), String.t(), keyword()) ::
           {:ok, Community.t()} | {:error, FoPost.Error.t()}

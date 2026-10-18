@@ -21,6 +21,7 @@ defmodule FoPost.Analytics do
   alias FoPost.Analytics.CollectSummary
   alias FoPost.Analytics.ContentDecay
   alias FoPost.Analytics.Demographics
+  alias FoPost.Analytics.InboxAnalytics
   alias FoPost.Analytics.LabelStats
   alias FoPost.Analytics.MetricChangePage
   alias FoPost.Analytics.NativePost
@@ -122,6 +123,21 @@ defmodule FoPost.Analytics do
   def posting_streak(client, opts \\ []) do
     with {:ok, data} <- get(client, "/analytics/posting-streak", opts) do
       {:ok, Model.list(StreakDay, Model.normalize(data)["streak"])}
+    end
+  end
+
+  @doc """
+  Inbox volume, reply rate and response time for the window.
+
+  Options: `:workspace_id`, `:account_id`, `:days`, and `:tz` for the zone the daily
+  series and heatmap are bucketed in.
+  """
+  @spec inbox(Client.t(), keyword()) :: {:ok, InboxAnalytics.t()} | {:error, FoPost.Error.t()}
+  def inbox(client, opts \\ []) do
+    params = Model.take_params(opts, [:workspace_id, :account_id, :days, :tz])
+
+    with {:ok, data} <- Client.request(client, :get, "/analytics/inbox", params: params) do
+      {:ok, InboxAnalytics.from_map(data)}
     end
   end
 
@@ -255,6 +271,9 @@ defmodule FoPost.Analytics do
   def posting_streak!(client, opts \\ []) do
     Result.unwrap!(posting_streak(client, opts))
   end
+
+  @doc "Same as `inbox/2`, but raises `FoPost.Error`."
+  def inbox!(client, opts \\ []), do: Result.unwrap!(inbox(client, opts))
 
   @doc "Same as `collect/2`, but raises `FoPost.Error`."
   def collect!(client, opts \\ []), do: Result.unwrap!(collect(client, opts))

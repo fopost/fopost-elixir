@@ -88,6 +88,8 @@ defmodule FoPost.Workspaces do
 
   @doc """
   A workspace's follower and post totals.
+
+  Wraps the API's `getWorkspaceAnalytics` operation.
   """
   @spec analytics(Client.t(), String.t()) ::
           {:ok, WorkspaceAnalytics.t()} | {:error, FoPost.Error.t()}
