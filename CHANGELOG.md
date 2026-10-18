@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `FoPost.Ads` pixels: `pixels/2`, `create_pixel/2`, `pixel/3`, `update_pixel/3`,
+  `share_pixel/3`, `pixel_stats/3`, and `event_match_quality/3` (scope `ads`).
+- `FoPost.Ads.send_pixel_conversions/3`: the Conversions API send with a required
+  `Idempotency-Key`; a replay answers `replayed: true`. `conversion_batches/2` lists the
+  stored uploads with their hashed events.
+- `FoPost.Ads` custom conversions: `custom_conversions/2`, `create_custom_conversion/2`,
+  `custom_conversion/3`, `update_custom_conversion/3`, and `delete_custom_conversion/3`.
+- `FoPost.Ads.upload_conversions/2` accepts `:idempotency_key` and the new per-event
+  fields (`eventId`, `actionSource`, `sourceUrl`, `externalId`, `clientIpAddress`,
+  `clientUserAgent`, `clickId`, `browserId`, `contentIds`).
+- `FoPost.Client.request/4` accepts `:headers` for extra request headers.
+
+### Changed
+
+- `FoPost.Ads.upload_conversions/2` answers a `FoPost.ConversionUploadResult` (`:id`,
+  `:accepted`, `:event_count`, `:replayed`) instead of the accepted count alone.
+
 ## [0.3.0] - 2026-10-18
 
 ### Added
