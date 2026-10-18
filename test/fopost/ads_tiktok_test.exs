@@ -109,10 +109,12 @@ defmodule FoPost.AdsTikTokTest do
       {:ok, raw, conn} = Plug.Conn.read_body(conn)
       assert Jason.decode!(raw)["pixelId"] == "px_1"
 
-      TestSupport.json(conn, 202, %{"data" => %{"accepted" => 2}})
+      TestSupport.json(conn, 202, %{
+        "data" => %{"id" => "cb_1", "accepted" => 2, "eventCount" => 2, "replayed" => false}
+      })
     end)
 
-    assert {:ok, 2} =
+    assert {:ok, %{accepted: 2, event_count: 2, replayed: false}} =
              Ads.upload_conversions(TestSupport.client(bypass),
                workspace_id: "ws_1",
                connection_id: "conn_1",
