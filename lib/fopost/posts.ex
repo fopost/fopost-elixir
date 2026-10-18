@@ -38,9 +38,10 @@ defmodule FoPost.Posts do
       )
 
   `:status` is `"draft"` or `"scheduled"`; a scheduled post needs `:schedule_at`, which
-  accepts a `DateTime`, a `NaiveDateTime`, or an ISO 8601 string. To send something out
-  now, create it and call `publish/3` — publishing answers when delivery is queued, not
-  when the post is live.
+  accepts a `DateTime`, a `NaiveDateTime`, or an ISO 8601 string. `schedule: "queue"`
+  drops the post into the next free slot of the posting queue (`FoPost.Queue`) instead.
+  To send something out now, create it and call `publish/3` — publishing answers when
+  delivery is queued, not when the post is live.
   """
 
   alias FoPost.Account
@@ -85,6 +86,7 @@ defmodule FoPost.Posts do
     :content_type,
     :artifact_type,
     :status,
+    :schedule,
     :repeatable,
     :repeatable_times,
     :repeatable_gap,
@@ -156,10 +158,10 @@ defmodule FoPost.Posts do
 
   Required: `:workspace_id`, `:content`, and `:accounts` or `:account_group_id` (the
   group's accounts are merged into `:accounts`, each account once). Optional: `:status`,
-  `:schedule_at`, `:content_type`, `:artifact_type`, `:labels`, `:title`,
-  `:internal_title`, `:summary`, `:auto_plug`, `:auto_plug_content`, `:settings`,
-  `:repeatable`, `:repeatable_times`, `:repeatable_gap`, `:repeatable_gap_unit`,
-  `:source_ids`, `:companion_of`, `:files`.
+  `:schedule_at`, `:schedule` (`"queue"`), `:content_type`, `:artifact_type`, `:labels`,
+  `:title`, `:internal_title`, `:summary`, `:auto_plug`, `:auto_plug_content`,
+  `:settings`, `:repeatable`, `:repeatable_times`, `:repeatable_gap`,
+  `:repeatable_gap_unit`, `:source_ids`, `:companion_of`, `:files`.
   """
   @spec create(Client.t(), keyword()) :: {:ok, Post.t()} | {:error, FoPost.Error.t()}
   def create(client, opts) do
