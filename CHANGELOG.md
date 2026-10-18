@@ -4,10 +4,39 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-18
 
 ### Added
 
+- `FoPost.Validate`: `post/2`, `length/2`, and `media/2` check content, text length, and a
+  media URL against platform rules without creating a post (scope `posts`).
+- `FoPost.AccountGroups`: `list/2`, `get/2`, `create/2`, `update/3`, `delete/2`, and
+  `set_members/3` (scope `accounts`).
+- `FoPost.Accounts.rename/3` and `move/3`, a `:group_id` filter on `list/2`, and
+  `:platform_name` on `FoPost.Account`.
+- `FoPost.Posts.create/2` accepts `:account_group_id`, which can stand in for `:accounts`.
+- `FoPost.Accounts.create_telegram_connect_code/2` and `telegram_connect_status/2` connect a
+  Telegram chat with a one-time code; `telegram_bot_commands/2`,
+  `set_telegram_bot_commands/3`, and `delete_telegram_bot_commands/2` manage the bot's
+  command menu in a connected chat (scope `accounts`).
+- `FoPost.Inbox`: `like/2`, `unlike/2`, `pin/2`, `unpin/2`, `react/3`, `edit_comment/3`,
+  `start_conversation/2`, and `set_typing/3` (scope `inbox`, plus `publish`).
+- `FoPost.Inbox.reply/3` accepts `:media_ids` and `:quick_replies`; `:text` is optional
+  when `:media_ids` is given.
+- `FoPost.InboxItem`: `:liked`, `:pinned`, `:reaction`, `:edited_at`, `:can_like`,
+  `:can_pin`, `:can_edit`, `:can_react`, `:can_send_media`, `:can_quick_reply`, and
+  `:can_private_reply`. `FoPost.InboxAccount`: `:can_start_conversation`.
+- `FoPost.Ads` campaign tree: `account_tree/3`, and create, get, update, delete, and
+  duplicate for campaigns, ad sets, and network ads, plus `bulk_set_status/2` (scope `ads`;
+  writes also need `publish`).
+- `FoPost.Ads` creatives (`creatives/2`, `create_creative/2`, `get_creative/3`,
+  `delete_creative/3`), audiences (`get_audience/3`, `update_audience/3`,
+  `delete_audience/3`, `add_audience_users/3`), `estimate_reach/2`, `insights/2`, and
+  `ad_insights/3`.
+- `FoPost.Ads` lead forms and leads: `get_lead_form/3`, `archive_lead_form/3`,
+  `leads_feed/2` (cursor paginated), `lead_pages/2`, `subscribe_lead_page/2`, and
+  `unsubscribe_lead_page/3`.
+- `FoPost.Ads.create/2` accepts `:url_tags`.
 - `FoPost.Blog.suggest_seeds/3` suggests about ten search terms from the blog goal and
   topics; pass `:seeds` to refine and `:prompt` to steer. Spends AI credits.
 - `FoPost.Blog.submit_article/3` moves a draft, failed or rejected article to
@@ -24,7 +53,6 @@ All notable changes to this project are documented in this file. The format foll
 - `FoPost.Whatsapp.create_sandbox_session/2` and `sandbox_sessions/2` invite a tester
   to the platform-owned WhatsApp test number. Inviting sends a template, so it needs
   the `publish` scope.
-
 - `FoPost.Media.limits/2` answers a `FoPost.UploadLimits`: the largest file the
   account may upload by any route, the multipart ceiling per file, the files per call,
   the accepted types, and the next tier.
@@ -108,9 +136,19 @@ All notable changes to this project are documented in this file. The format foll
   `tiktok_video_lookup/3`), Instagram audio, publishing limit and stories
   (`instagram_audio/3`, `instagram_publishing_limit/2`, `instagram_stories/3`,
   `instagram_story_insights/3`), and LinkedIn mentions (`linkedin_mentions/3`).
+- `FoPost.Accounts.reddit_subreddits/2`, `reddit_subreddit_rules/3`, `reddit_flairs/3`, and
+  `set_reddit_default_subreddit/3` read the subreddits a Reddit account is in, a
+  subreddit's rules and post flairs, and set where posts go when a post names none (scope
+  `accounts`).
+- `FoPost.Validate.subreddit/2` answers whether a subreddit exists and takes a post from an
+  account, before a post exists (scope `posts`).
+- `FoPost.Inbox.vote/3` votes an item up or down, or takes the vote back with `"none"`
+  (scopes `inbox` and `publish`).
+- `:reconnect_required` on `FoPost.Account`, and `:vote` and `:can_vote` on an inbox item.
 
 ### Changed
 
+- `FoPost.Inbox.delete/2` also deletes our own replies.
 - Signature comparison in `FoPost.Webhooks` now uses `:crypto.hash_equals/2`.
 - Direct uploads no longer stop at 50 MB; the ceiling is the account's `limits/2`.
 - `FoPost.Blog.plan_keywords/3` no longer fills the calendar: results land as
@@ -125,43 +163,9 @@ All notable changes to this project are documented in this file. The format foll
 - **Breaking:** `:auto_publish` is gone from `FoPost.BlogSettings` and
   `FoPost.Blog.update_settings/3`. Nothing publishes without approval.
 
-## [0.3.0] - 2026-09-19
+### Fixed
 
-### Added
-
-- `FoPost.Validate`: `post/2`, `length/2`, and `media/2` check content, text length, and a
-  media URL against platform rules without creating a post (scope `posts`).
-- `FoPost.AccountGroups`: `list/2`, `get/2`, `create/2`, `update/3`, `delete/2`, and
-  `set_members/3` (scope `accounts`).
-- `FoPost.Accounts.rename/3` and `move/3`, a `:group_id` filter on `list/2`, and
-  `:platform_name` on `FoPost.Account`.
-- `FoPost.Posts.create/2` accepts `:account_group_id`, which can stand in for `:accounts`.
-- `FoPost.Accounts.create_telegram_connect_code/2` and `telegram_connect_status/2` connect a
-  Telegram chat with a one-time code; `telegram_bot_commands/2`,
-  `set_telegram_bot_commands/3`, and `delete_telegram_bot_commands/2` manage the bot's
-  command menu in a connected chat (scope `accounts`).
-- `FoPost.Inbox`: `like/2`, `unlike/2`, `pin/2`, `unpin/2`, `react/3`, `edit_comment/3`,
-  `start_conversation/2`, and `set_typing/3` (scope `inbox`, plus `publish`).
-- `FoPost.Inbox.reply/3` accepts `:media_ids` and `:quick_replies`; `:text` is optional
-  when `:media_ids` is given.
-- `FoPost.InboxItem`: `:liked`, `:pinned`, `:reaction`, `:edited_at`, `:can_like`,
-  `:can_pin`, `:can_edit`, `:can_react`, `:can_send_media`, `:can_quick_reply`, and
-  `:can_private_reply`. `FoPost.InboxAccount`: `:can_start_conversation`.
-- `FoPost.Ads` campaign tree: `account_tree/3`, and create, get, update, delete, and
-  duplicate for campaigns, ad sets, and network ads, plus `bulk_set_status/2` (scope `ads`;
-  writes also need `publish`).
-- `FoPost.Ads` creatives (`creatives/2`, `create_creative/2`, `get_creative/3`,
-  `delete_creative/3`), audiences (`get_audience/3`, `update_audience/3`,
-  `delete_audience/3`, `add_audience_users/3`), `estimate_reach/2`, `insights/2`, and
-  `ad_insights/3`.
-- `FoPost.Ads` lead forms and leads: `get_lead_form/3`, `archive_lead_form/3`,
-  `leads_feed/2` (cursor paginated), `lead_pages/2`, `subscribe_lead_page/2`, and
-  `unsubscribe_lead_page/3`.
-- `FoPost.Ads.create/2` accepts `:url_tags`.
-
-### Changed
-
-- `FoPost.Inbox.delete/2` also deletes our own replies.
+- `FoPost.Blogs.delete_article!/4` returns `:ok` on success instead of raising.
 
 ## [0.2.0] - 2026-09-19
 
