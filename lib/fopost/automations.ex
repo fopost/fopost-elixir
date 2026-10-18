@@ -16,10 +16,12 @@ defmodule FoPost.Automations do
   """
 
   alias FoPost.Automation
+  alias FoPost.AutomationRestore
   alias FoPost.AutomationRun
   alias FoPost.AutomationStats
   alias FoPost.AutomationStep
   alias FoPost.AutomationTrigger
+  alias FoPost.AutomationVersion
   alias FoPost.Client
   alias FoPost.Message
   alias FoPost.Model
@@ -145,6 +147,45 @@ defmodule FoPost.Automations do
   end
 
   @doc """
+  One page of an automation's saved versions, newest first, each with what it added
+  and removed. Paging: `:page`, `:per_page`.
+  """
+  @spec versions(Client.t(), String.t(), keyword()) ::
+          {:ok, Page.t()} | {:error, FoPost.Error.t()}
+  def versions(client, id, opts \\ []) do
+    params = Model.take_params(opts, [:page, :per_page])
+    url_path = path(id) <> "/versions"
+
+    with {:ok, data} <- Client.request(client, :get, url_path, params: params, unwrap: false) do
+      {:ok, Page.from_map(data, AutomationVersion)}
+    end
+  end
+
+  @doc """
+  One version, with its full graph.
+  """
+  @spec version(Client.t(), String.t(), integer() | String.t()) ::
+          {:ok, AutomationVersion.t()} | {:error, FoPost.Error.t()}
+  def version(client, id, version) do
+    with {:ok, data} <- Client.request(client, :get, version_path(id, version)) do
+      {:ok, AutomationVersion.from_map(data)}
+    end
+  end
+
+  @doc """
+  Makes an earlier version the current one, saved as a new version.
+  """
+  @spec restore_version(Client.t(), String.t(), integer() | String.t()) ::
+          {:ok, AutomationRestore.t()} | {:error, FoPost.Error.t()}
+  def restore_version(client, id, version) do
+    url_path = version_path(id, version) <> "/restore"
+
+    with {:ok, data} <- Client.request(client, :post, url_path) do
+      {:ok, AutomationRestore.from_map(data)}
+    end
+  end
+
+  @doc """
   Automation counts and the runs of the last day.
   """
   @spec stats(Client.t()) :: {:ok, AutomationStats.t()} | {:error, FoPost.Error.t()}
@@ -183,6 +224,17 @@ defmodule FoPost.Automations do
     Result.unwrap!(trigger(client, id, payload))
   end
 
+  @doc "Same as `versions/3`, but raises `FoPost.Error`."
+  def versions!(client, id, opts \\ []), do: Result.unwrap!(versions(client, id, opts))
+
+  @doc "Same as `version/3`, but raises `FoPost.Error`."
+  def version!(client, id, version), do: Result.unwrap!(version(client, id, version))
+
+  @doc "Same as `restore_version/3`, but raises `FoPost.Error`."
+  def restore_version!(client, id, version) do
+    Result.unwrap!(restore_version(client, id, version))
+  end
+
   @doc "Same as `stats/1`, but raises `FoPost.Error`."
   def stats!(client), do: Result.unwrap!(stats(client))
 
@@ -206,6 +258,8 @@ defmodule FoPost.Automations do
   end
 
   defp path(id), do: "/automations/" <> segment(id)
+
+  defp version_path(id, version), do: path(id) <> "/versions/" <> segment(version)
 
   defp segment(value), do: URI.encode(to_string(value), &URI.char_unreserved?/1)
 end

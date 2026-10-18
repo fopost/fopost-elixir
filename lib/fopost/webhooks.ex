@@ -36,6 +36,7 @@ defmodule FoPost.Webhooks do
   alias FoPost.Model
   alias FoPost.Result
   alias FoPost.Webhook
+  alias FoPost.WebhookDelivery
   alias FoPost.WebhookEvent
 
   @events [
@@ -115,6 +116,47 @@ defmodule FoPost.Webhooks do
   def test(client, id) do
     with {:ok, data} <- Client.request(client, :post, path(id) <> "/test") do
       {:ok, Message.from_map(data)}
+    end
+  end
+
+  @doc """
+  The delivery log of a subscription, newest first.
+
+  Options: `:status` (`"success"` or `"failed"`), `:limit`.
+  """
+  @spec deliveries(Client.t(), String.t(), keyword()) ::
+          {:ok, [WebhookDelivery.t()]} | {:error, FoPost.Error.t()}
+  def deliveries(client, id, opts \\ []) do
+    params = Model.take_params(opts, [:status, :limit])
+
+    with {:ok, data} <-
+           Client.request(client, :get, path(id) <> "/deliveries", params: params) do
+      {:ok, Model.list(WebhookDelivery, data)}
+    end
+  end
+
+  @doc """
+  One delivery attempt, with the body exactly as it was sent on `:payload`.
+  """
+  @spec delivery(Client.t(), String.t(), String.t()) ::
+          {:ok, WebhookDelivery.t()} | {:error, FoPost.Error.t()}
+  def delivery(client, id, delivery_id) do
+    with {:ok, data} <- Client.request(client, :get, delivery_path(id, delivery_id)) do
+      {:ok, WebhookDelivery.from_map(data)}
+    end
+  end
+
+  @doc """
+  Sends a delivery's payload again, as a new attempt under the same delivery key.
+
+  Answers `:ok` once the redelivery is queued.
+  """
+  @spec redeliver(Client.t(), String.t(), String.t()) :: :ok | {:error, FoPost.Error.t()}
+  def redeliver(client, id, delivery_id) do
+    url_path = delivery_path(id, delivery_id) <> "/redeliver"
+
+    with {:ok, _data} <- Client.request(client, :post, url_path) do
+      :ok
     end
   end
 
@@ -221,6 +263,20 @@ defmodule FoPost.Webhooks do
   @doc "Same as `test/2`, but raises `FoPost.Error`."
   def test!(client, id), do: Result.unwrap!(test(client, id))
 
+  @doc "Same as `deliveries/3`, but raises `FoPost.Error`."
+  def deliveries!(client, id, opts \\ []), do: Result.unwrap!(deliveries(client, id, opts))
+
+  @doc "Same as `delivery/3`, but raises `FoPost.Error`."
+  def delivery!(client, id, delivery_id), do: Result.unwrap!(delivery(client, id, delivery_id))
+
+  @doc "Same as `redeliver/3`, but raises `FoPost.Error`."
+  def redeliver!(client, id, delivery_id) do
+    case redeliver(client, id, delivery_id) do
+      :ok -> :ok
+      {:error, error} -> raise error
+    end
+  end
+
   defp check_signature(raw_body, headers, secret, tolerance, now) do
     case Map.fetch(headers, @timestamp_header) do
       {:ok, timestamp} ->
@@ -278,5 +334,9 @@ defmodule FoPost.Webhooks do
 
   defp secure_equal?(_left, _right), do: false
 
-  defp path(id), do: "/webhooks/" <> URI.encode(to_string(id), &URI.char_unreserved?/1)
+  defp path(id), do: "/webhooks/" <> segment(id)
+
+  defp delivery_path(id, delivery_id), do: path(id) <> "/deliveries/" <> segment(delivery_id)
+
+  defp segment(value), do: URI.encode(to_string(value), &URI.char_unreserved?/1)
 end

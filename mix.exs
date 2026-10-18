@@ -1,7 +1,7 @@
 defmodule FoPost.MixProject do
   use Mix.Project
 
-  @version "0.3.0"
+  @version "0.4.0"
   @source_url "https://github.com/fopost/fopost-elixir"
 
   def project do
@@ -70,10 +70,13 @@ defmodule FoPost.MixProject do
           FoPost.Automations,
           FoPost.Blog,
           FoPost.Communities,
+          FoPost.ConnectSessions,
           FoPost.Inbox,
           FoPost.Labels,
+          FoPost.Logs,
           FoPost.Media,
           FoPost.Posts,
+          FoPost.Queue,
           FoPost.Validate,
           FoPost.Webhooks,
           FoPost.Workspaces
