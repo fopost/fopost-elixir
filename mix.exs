@@ -70,10 +70,13 @@ defmodule FoPost.MixProject do
           FoPost.Automations,
           FoPost.Blog,
           FoPost.Communities,
+          FoPost.ConnectSessions,
           FoPost.Inbox,
           FoPost.Labels,
+          FoPost.Logs,
           FoPost.Media,
           FoPost.Posts,
+          FoPost.Queue,
           FoPost.Validate,
           FoPost.Webhooks,
           FoPost.Workspaces

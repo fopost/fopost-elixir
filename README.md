@@ -18,7 +18,7 @@ Requires Elixir 1.15 or newer on OTP 25 or newer.
 
 ```elixir
 def deps do
-  [{:fopost, "~> 0.3"}]
+  [{:fopost, "~> 0.4"}]
 end
 ```
 
@@ -277,7 +277,8 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
 `FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
-`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Blogs` · `FoPost.Whatsapp`
+`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Blogs` · `FoPost.Whatsapp` ·
+`FoPost.Queue` · `FoPost.ConnectSessions` · `FoPost.Logs`
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
