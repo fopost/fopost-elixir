@@ -277,7 +277,7 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Communities` · `FoPost.Labels` · `FoPost.Webhooks` · `FoPost.Analytics` ·
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
 `FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
-`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Whatsapp`
+`FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Blogs` · `FoPost.Whatsapp`
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
