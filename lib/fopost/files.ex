@@ -52,8 +52,15 @@ defmodule FoPost.Files do
   end
 
   @spec body(t()) :: binary() | File.Stream.t()
-  def body(%{path: path}) when is_binary(path), do: File.stream!(path, @chunk)
+  def body(%{path: path}) when is_binary(path), do: chunked_stream(path)
   def body(%{data: data}), do: data
+
+  # Elixir 1.16 swapped File.stream!'s arguments; 1.15 reads the second as modes.
+  if Version.match?(System.version(), ">= 1.16.0") do
+    defp chunked_stream(path), do: File.stream!(path, @chunk)
+  else
+    defp chunked_stream(path), do: File.stream!(path, [], @chunk)
+  end
 
   @spec part(t()) :: {binary() | File.Stream.t(), keyword()}
   def part(file) do
