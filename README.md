@@ -18,7 +18,7 @@ Requires Elixir 1.15 or newer on OTP 25 or newer.
 
 ```elixir
 def deps do
-  [{:fopost, "~> 0.3"}]
+  [{:fopost, "~> 0.4"}]
 end
 ```
 
@@ -278,7 +278,7 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
 `FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
 `FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Blogs` · `FoPost.Whatsapp` ·
-`FoPost.X`
+`FoPost.Queue` · `FoPost.ConnectSessions` · `FoPost.Logs` · `FoPost.X`
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
@@ -391,6 +391,33 @@ meta = [workspace_id: workspace.id, connection_id: connection.id]
 {:ok, page} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, limit: 50)
 {:ok, next} = FoPost.Ads.leads_feed(client, workspace_id: workspace.id, cursor: page.next_cursor)
 ```
+
+Pixels, the Conversions API, and custom conversions are on `FoPost.Ads` too. A send with
+an `Idempotency-Key` can be retried safely: a replay answers `replayed: true` and sends
+nothing.
+
+```elixir
+scope = [workspace_id: workspace.id, connection_id: connection.id, ad_account_id: "act_123"]
+
+{:ok, [pixel | _]} = FoPost.Ads.pixels(client, scope)
+
+{:ok, result} =
+  FoPost.Ads.send_pixel_conversions(client, "order-55",
+    workspace_id: workspace.id,
+    connection_id: connection.id,
+    ad_account_id: "act_123",
+    pixel_id: pixel.id,
+    events: [
+      %{eventName: "Purchase", occurredAt: "2026-10-18T10:04:00Z", eventId: "order-55",
+        email: "buyer@yourbrand.com", valueMinor: 4_900, currency: "USD"}
+    ]
+  )
+
+{:ok, quality} = FoPost.Ads.event_match_quality(client, pixel.id, scope)
+```
+
+Also `create_pixel/2`, `pixel/3`, `update_pixel/3`, `share_pixel/3`, `pixel_stats/3`,
+`conversion_batches/2`, and `custom_conversions/2` with create, get, update, and delete.
 
 ## X
 

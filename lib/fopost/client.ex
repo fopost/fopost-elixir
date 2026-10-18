@@ -21,7 +21,7 @@ defmodule FoPost.Client do
 
   alias FoPost.Error
 
-  @version "0.3.0"
+  @version "0.4.0"
   @default_base_url "https://api.fopost.com/v1"
   @default_receive_timeout 30_000
   @default_max_retries 2
@@ -99,15 +99,17 @@ defmodule FoPost.Client do
 
     * `:unwrap` — peel the `{"data": ...}` envelope off a successful response.
       Defaults to `true`; list endpoints that also need `meta` pass `false`.
+    * `:headers` — extra request headers, added to the client's own.
 
   Answers `{:ok, body}` or `{:error, %FoPost.Error{}}`.
   """
   @spec request(t(), atom(), String.t(), keyword()) :: {:ok, term()} | {:error, Error.t()}
   def request(%__MODULE__{} = client, method, path, opts \\ []) do
-    {unwrap?, req_opts} = Keyword.pop(opts, :unwrap, true)
+    {unwrap?, opts} = Keyword.pop(opts, :unwrap, true)
+    {extra_headers, req_opts} = Keyword.pop(opts, :headers, [])
 
     client
-    |> build(method, url(client, path), headers(client), req_opts)
+    |> build(method, url(client, path), headers(client) ++ extra_headers, req_opts)
     |> Req.request()
     |> handle(unwrap?)
   end

@@ -8,6 +8,17 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Ads` pixels: `pixels/2`, `create_pixel/2`, `pixel/3`, `update_pixel/3`,
+  `share_pixel/3`, `pixel_stats/3`, and `event_match_quality/3` (scope `ads`).
+- `FoPost.Ads.send_pixel_conversions/3`: the Conversions API send with a required
+  `Idempotency-Key`; a replay answers `replayed: true`. `conversion_batches/2` lists the
+  stored uploads with their hashed events.
+- `FoPost.Ads` custom conversions: `custom_conversions/2`, `create_custom_conversion/2`,
+  `custom_conversion/3`, `update_custom_conversion/3`, and `delete_custom_conversion/3`.
+- `FoPost.Ads.upload_conversions/2` accepts `:idempotency_key` and the new per-event
+  fields (`eventId`, `actionSource`, `sourceUrl`, `externalId`, `clientIpAddress`,
+  `clientUserAgent`, `clickId`, `browserId`, `contentIds`).
+- `FoPost.Client.request/4` accepts `:headers` for extra request headers.
 - `FoPost.Inbox.repost/2`, `unrepost/2`, `bookmark/2`, and `unbookmark/2` on X inbox items
   where `:can_repost` and `:can_bookmark` are true, plus `:reposted`, `:bookmarked`,
   `:can_repost`, and `:can_bookmark` on `FoPost.InboxItem` (scopes `inbox` and `publish`).
@@ -19,6 +30,38 @@ All notable changes to this project are documented in this file. The format foll
 - A spent X balance answers `402` with `code: "platform_balance_spent"`. An X account
   connected before this release must be reconnected for repost, bookmark and follow;
   until then it answers `409 reconnect_required`.
+
+### Changed
+
+- `FoPost.Ads.upload_conversions/2` answers a `FoPost.ConversionUploadResult` (`:id`,
+  `:accepted`, `:event_count`, `:replayed`) instead of the accepted count alone.
+
+## [0.4.0] - 2026-10-18
+
+### Added
+
+- `FoPost.Queue`, the posting queue: `list_slots/2`, `create_slot/2`, `update_slot/3`,
+  `delete_slot/2`, `next/3` and `preview/3`, with `FoPost.QueueSlot`, `FoPost.QueueMove`
+  and `FoPost.QueueSlotDeletion`. `FoPost.Posts.create/2` and `update/3` take
+  `schedule: "queue"` to drop a post into the next free slot (scope `posts`).
+- `FoPost.Posts.unpublish/2` takes a published post down from every network it is live
+  on, answering a `FoPost.UnpublishResult` with one `FoPost.UnpublishDelivery` per
+  network (scope `publish`).
+- `FoPost.ConnectSessions.create/2` and `get/2`, hosted connect links your own users open
+  to connect an account, with `FoPost.ConnectSession` and
+  `FoPost.ConnectSessionBranding` (scope `accounts`).
+- `FoPost.Webhooks.deliveries/3`, `delivery/3` and `redeliver/3` read a subscription's
+  delivery log and send an attempt again, with `FoPost.WebhookDelivery`.
+- `FoPost.Automations.versions/3`, `version/3` and `restore_version/3`, with
+  `FoPost.AutomationVersion`, `FoPost.AutomationVersionNodeRef`, `FoPost.WorkflowGraph`,
+  `FoPost.WorkflowNode`, `FoPost.WorkflowEdge` and `FoPost.AutomationRestore`.
+- `FoPost.Logs.list/2` reads the request log with the window's totals, answering a
+  `FoPost.LogPage` of `FoPost.LogEntry` rows and a `FoPost.LogSummary` (scope
+  `workspaces`).
+- `FoPost.Analytics.inbox/2` reports inbox volume, reply rate and response time as a
+  `FoPost.Analytics.InboxAnalytics` (scope `analytics`).
+- Every function that builds its path from a helper now names the API operation it wraps
+  in its documentation.
 
 ## [0.3.0] - 2026-10-18
 

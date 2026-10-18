@@ -925,3 +925,52 @@ defmodule FoPost.Analytics.NativePost do
 
   def from_map(_data), do: nil
 end
+
+defmodule FoPost.Analytics.InboxAnalytics do
+  @moduledoc """
+  Inbox volume and responsiveness for a window.
+
+  `:totals` counts what came in, went out, got answered and is still open, plus
+  `"median_response_minutes"`; `:deltas` is the percentage change against the previous
+  period. `:series` is one row per day, `:by_platform`, `:by_type`, `:by_account`,
+  `:response_time` and `:heatmap` are the breakdowns, each a list of maps in the API's
+  own field names, bucketed in `:time_zone`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [
+    :totals,
+    :deltas,
+    :time_zone,
+    :raw,
+    series: [],
+    by_platform: [],
+    by_type: [],
+    by_account: [],
+    response_time: [],
+    heatmap: []
+  ]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      totals: Model.normalize(fields["totals"]),
+      deltas: Model.normalize(fields["deltas"]),
+      series: Model.maps(fields["series"]),
+      by_platform: Model.maps(fields["by_platform"]),
+      by_type: Model.maps(fields["by_type"]),
+      by_account: Model.maps(fields["by_account"]),
+      response_time: Model.maps(fields["response_time"]),
+      heatmap: Model.maps(fields["heatmap"]),
+      time_zone: fields["time_zone"],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

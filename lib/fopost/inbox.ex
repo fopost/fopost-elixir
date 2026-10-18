@@ -216,6 +216,8 @@ defmodule FoPost.Inbox do
   A DM reply may also carry `:media_ids` (media library ids, at most 10) and
   `:quick_replies` (at most 13, each at most 20 characters); either also needs the
   `publish` scope.
+
+  Wraps the API's `replyToInboxItem` operation.
   """
   @spec reply(Client.t(), String.t(), keyword()) ::
           {:ok, InboxReplyResult.t()} | {:error, FoPost.Error.t()}
@@ -229,6 +231,8 @@ defmodule FoPost.Inbox do
 
   @doc """
   Hides a comment on the platform.
+
+  Wraps the API's `hideInboxItem` operation.
   """
   @spec hide(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
   def hide(client, id) do
@@ -239,6 +243,8 @@ defmodule FoPost.Inbox do
 
   @doc """
   Shows a hidden comment again.
+
+  Wraps the API's `unhideInboxItem` operation.
   """
   @spec unhide(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
   def unhide(client, id) do
@@ -261,12 +267,16 @@ defmodule FoPost.Inbox do
   @doc """
   Likes an item on the platform (an upvote on Reddit, a favourite on Mastodon). Only where
   `:can_like` is true. Also needs the `publish` scope.
+
+  Wraps the API's `likeInboxItem` operation.
   """
   @spec like(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
   def like(client, id), do: action(client, id, "like")
 
   @doc """
   Removes our like. Only where `:can_like` is true. Also needs the `publish` scope.
+
+  Wraps the API's `unlikeInboxItem` operation.
   """
   @spec unlike(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
   def unlike(client, id), do: action(client, id, "unlike")
@@ -275,12 +285,16 @@ defmodule FoPost.Inbox do
   Reposts an item to the account's own timeline (X). Only where `:can_repost` is true.
   Also needs the `publish` scope. An X account connected before reposts were supported
   answers `409 reconnect_required`; a spent X balance answers `402 platform_balance_spent`.
+
+  Wraps the API's `repostInboxItem` operation.
   """
   @spec repost(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
   def repost(client, id), do: action(client, id, "repost")
 
   @doc """
   Removes our repost. Only where `:can_repost` is true. Also needs the `publish` scope.
+
+  Wraps the API's `unrepostInboxItem` operation.
   """
   @spec unrepost(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
   def unrepost(client, id), do: action(client, id, "unrepost")
@@ -288,12 +302,16 @@ defmodule FoPost.Inbox do
   @doc """
   Bookmarks an item on the account (X). Only where `:can_bookmark` is true. Also needs
   the `publish` scope.
+
+  Wraps the API's `bookmarkInboxItem` operation.
   """
   @spec bookmark(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
   def bookmark(client, id), do: action(client, id, "bookmark")
 
   @doc """
   Removes our bookmark. Only where `:can_bookmark` is true. Also needs the `publish` scope.
+
+  Wraps the API's `unbookmarkInboxItem` operation.
   """
   @spec unbookmark(Client.t(), String.t()) ::
           {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
@@ -305,6 +323,8 @@ defmodule FoPost.Inbox do
 
   Only where `:can_vote` is true. An upvote is the same call a like makes, so `:liked`
   moves with it. Also needs the `publish` scope.
+
+  Wraps the API's `voteInboxItem` operation.
   """
   @spec vote(Client.t(), String.t(), String.t()) ::
           {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
@@ -325,6 +345,8 @@ defmodule FoPost.Inbox do
 
   @doc """
   Unpins our own comment. Only where `:can_pin` is true. Also needs the `publish` scope.
+
+  Wraps the API's `unpinInboxItem` operation.
   """
   @spec unpin(Client.t(), String.t()) :: {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
   def unpin(client, id), do: action(client, id, "unpin")
@@ -332,6 +354,8 @@ defmodule FoPost.Inbox do
   @doc """
   Reacts to a message with an emoji (at most 32 characters); `nil` removes ours. Only where
   `:can_react` is true. Also needs the `publish` scope.
+
+  Wraps the API's `reactToInboxItem` operation.
   """
   @spec react(Client.t(), String.t(), String.t() | nil) ::
           {:ok, InboxItem.t()} | {:error, FoPost.Error.t()}
@@ -414,6 +438,8 @@ defmodule FoPost.Inbox do
 
   @doc """
   Sends a drafted reply, or `:text` in its place. `id` is the approval's integer id.
+
+  Wraps the API's `approveInboxReply` operation.
   """
   @spec approve_reply(Client.t(), integer(), keyword()) ::
           {:ok, InboxDecision.t()} | {:error, FoPost.Error.t()}
@@ -427,6 +453,8 @@ defmodule FoPost.Inbox do
 
   @doc """
   Discards a drafted reply. `id` is the approval's integer id.
+
+  Wraps the API's `rejectInboxReply` operation.
   """
   @spec reject_reply(Client.t(), integer()) ::
           {:ok, InboxDecision.t()} | {:error, FoPost.Error.t()}

@@ -19,6 +19,8 @@ defmodule FoPost.X do
 
   @doc """
   One post by its X id, read through `account_id`. 404 when X has no such post.
+
+  Wraps the API's `getXPost` operation.
   """
   @spec get_post(Client.t(), String.t(), String.t()) ::
           {:ok, XPost.t()} | {:error, FoPost.Error.t()}
@@ -35,6 +37,8 @@ defmodule FoPost.X do
 
   Options: `:max_results` (10 to 100) and `:next_token` (the previous page's
   `:next_token`).
+
+  Wraps the API's `searchXPosts` operation.
   """
   @spec search_posts(Client.t(), String.t(), String.t(), keyword()) ::
           {:ok, XSearchPage.t()} | {:error, FoPost.Error.t()}

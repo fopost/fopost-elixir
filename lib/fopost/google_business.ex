@@ -37,6 +37,8 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   The connected location, in the Business Information shape.
+
+  Wraps the API's `getGoogleBusinessLocation` operation.
   """
   @spec get_location(Client.t(), String.t()) :: result()
   def get_location(client, id), do: read(client, :get, path(id, "/location"))
@@ -47,6 +49,8 @@ defmodule FoPost.GoogleBusiness do
   Only the keys `fields` carries change, and a `nil` clears that field. Keys are
   the API's own snake_case names: `"title"`, `"description"`, `"website_uri"`,
   `"primary_phone"`, `"additional_phones"`, `"store_code"`, `"regular_hours"`.
+
+  Wraps the API's `updateGoogleBusinessLocation` operation.
   """
   @spec update_location(Client.t(), String.t(), map()) :: result()
   def update_location(client, id, fields) when is_map(fields) do
@@ -59,6 +63,8 @@ defmodule FoPost.GoogleBusiness do
   `available: true` lists the attributes Google offers for the location's
   category and region instead. Also takes `:category_name`, `:region_code` and
   `:language_code`.
+
+  Wraps the API's `getGoogleBusinessAttributes` operation.
   """
   @spec get_attributes(Client.t(), String.t(), keyword()) :: result()
   def get_attributes(client, id, opts \\ []) do
@@ -70,6 +76,8 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   Changes only the named attributes; every other one is left alone.
+
+  Wraps the API's `updateGoogleBusinessAttributes` operation.
   """
   @spec update_attributes(Client.t(), String.t(), [map()]) :: result()
   def update_attributes(client, id, attributes) when is_list(attributes) do
@@ -78,12 +86,16 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   The location's food menus.
+
+  Wraps the API's `getGoogleBusinessMenus` operation.
   """
   @spec get_menus(Client.t(), String.t()) :: result()
   def get_menus(client, id), do: read(client, :get, path(id, "/menus"))
 
   @doc """
   Replaces the whole menu set; Google has no per-section patch.
+
+  Wraps the API's `replaceGoogleBusinessMenus` operation.
   """
   @spec replace_menus(Client.t(), String.t(), [map()]) :: result()
   def replace_menus(client, id, menus) when is_list(menus) do
@@ -92,12 +104,16 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   The location's service list.
+
+  Wraps the API's `getGoogleBusinessServices` operation.
   """
   @spec get_services(Client.t(), String.t()) :: result()
   def get_services(client, id), do: read(client, :get, path(id, "/services"))
 
   @doc """
   Replaces the whole service list.
+
+  Wraps the API's `replaceGoogleBusinessServices` operation.
   """
   @spec replace_services(Client.t(), String.t(), [map()]) :: result()
   def replace_services(client, id, service_items) when is_list(service_items) do
@@ -106,6 +122,8 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   The photos on the location. Takes `:page_size` and `:page_token`.
+
+  Wraps the API's `listGoogleBusinessMedia` operation.
   """
   @spec list_media(Client.t(), String.t(), keyword()) :: result()
   def list_media(client, id, opts \\ []) do
@@ -119,6 +137,8 @@ defmodule FoPost.GoogleBusiness do
 
   The asset has to be in a workspace the caller can reach, and JPEG or PNG.
   Takes `:media_id` (required), `:category` and `:description`.
+
+  Wraps the API's `addGoogleBusinessMedia` operation.
   """
   @spec add_media(Client.t(), String.t(), keyword()) :: result()
   def add_media(client, id, opts) do
@@ -132,6 +152,8 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   Removes a photo by the media key Google returned.
+
+  Wraps the API's `deleteGoogleBusinessMedia` operation.
   """
   @spec delete_media(Client.t(), String.t(), String.t()) :: result()
   def delete_media(client, id, media_key) do
@@ -140,6 +162,8 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   The Book, Order and Reserve links on the listing.
+
+  Wraps the API's `listGoogleBusinessPlaceActions` operation.
   """
   @spec list_place_actions(Client.t(), String.t()) :: result()
   def list_place_actions(client, id), do: read(client, :get, path(id, "/place-actions"))
@@ -148,6 +172,8 @@ defmodule FoPost.GoogleBusiness do
   Adds an action link to the listing.
 
   Takes `:uri` and `:place_action_type` (both required) and `:is_preferred`.
+
+  Wraps the API's `createGoogleBusinessPlaceAction` operation.
   """
   @spec create_place_action(Client.t(), String.t(), keyword()) :: result()
   def create_place_action(client, id, opts) do
@@ -158,6 +184,8 @@ defmodule FoPost.GoogleBusiness do
   @doc """
   Patches one action link. An omitted key is left alone. Takes `:uri` and
   `:is_preferred`.
+
+  Wraps the API's `updateGoogleBusinessPlaceAction` operation.
   """
   @spec update_place_action(Client.t(), String.t(), String.t(), keyword()) :: result()
   def update_place_action(client, id, link_id, opts) do
@@ -167,6 +195,8 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   Removes one action link.
+
+  Wraps the API's `deleteGoogleBusinessPlaceAction` operation.
   """
   @spec delete_place_action(Client.t(), String.t(), String.t()) :: result()
   def delete_place_action(client, id, link_id) do
@@ -175,6 +205,8 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   The ways Google will let this location be verified. Takes `:language_code`.
+
+  Wraps the API's `getGoogleBusinessVerificationOptions` operation.
   """
   @spec get_verification_options(Client.t(), String.t(), keyword()) :: result()
   def get_verification_options(client, id, opts \\ []) do
@@ -190,6 +222,8 @@ defmodule FoPost.GoogleBusiness do
   `"VETTED_PARTNER"`; the response names the pending verification to complete
   with the PIN. Also takes `:language_code`, `:phone_number`, `:email_address`
   and `:mailer_contact_name`.
+
+  Wraps the API's `startGoogleBusinessVerification` operation.
   """
   @spec start_verification(Client.t(), String.t(), keyword()) :: result()
   def start_verification(client, id, opts) do
@@ -207,6 +241,8 @@ defmodule FoPost.GoogleBusiness do
 
   @doc """
   Completes a pending verification with the PIN Google sent.
+
+  Wraps the API's `completeGoogleBusinessVerification` operation.
   """
   @spec complete_verification(Client.t(), String.t(), String.t(), String.t()) :: result()
   def complete_verification(client, id, verification_name, pin) do
@@ -219,6 +255,8 @@ defmodule FoPost.GoogleBusiness do
 
   `:start_date` and `:end_date` are ISO dates. `:daily_metrics` is a list; left
   out, the API uses its own default set.
+
+  Wraps the API's `getGoogleBusinessPerformance` operation.
   """
   @spec get_performance(Client.t(), String.t(), keyword()) :: result()
   def get_performance(client, id, opts) do
@@ -246,6 +284,8 @@ defmodule FoPost.GoogleBusiness do
   Hands the location to another workspace the caller owns.
 
   The connection and every row keyed to it move in one transaction.
+
+  Wraps the API's `assignGoogleBusinessLocation` operation.
   """
   @spec assign(Client.t(), String.t(), String.t()) ::
           {:ok, Account.t()} | {:error, FoPost.Error.t()}
