@@ -158,8 +158,13 @@ defmodule FoPost.Blogs do
     do: Result.unwrap!(update_article(client, account_id, blog_id, article_id, opts))
 
   @doc "Same as `delete_article/4`, but raises `FoPost.Error`."
-  def delete_article!(client, account_id, blog_id, article_id),
-    do: Result.unwrap!(delete_article(client, account_id, blog_id, article_id))
+  # delete_article/4 answers a bare :ok, which Result.unwrap!/1 does not take.
+  def delete_article!(client, account_id, blog_id, article_id) do
+    case delete_article(client, account_id, blog_id, article_id) do
+      :ok -> :ok
+      {:error, error} -> raise error
+    end
+  end
 
   @doc "Same as `list_products/3`, but raises `FoPost.Error`."
   def list_products!(client, account_id, opts \\ []),
