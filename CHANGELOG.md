@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Removed
+
+- `FoPost.Blog` and the blog models (`FoPost.BlogArticle*`, `FoPost.BlogKeyword`,
+  `FoPost.BlogSettings`, `FoPost.BlogWebsiteTest`, `FoPost.BlogPlanRun`), retired with the
+  API's `/v1/blog` endpoints, and the `article.published` event from `FoPost.Webhooks.events/0`.
+  `FoPost.Blogs` (articles on a connected site) is unchanged.
+
 ### Added
 
 - `FoPost.Ads` pixels: `pixels/2`, `create_pixel/2`, `pixel/3`, `update_pixel/3`,

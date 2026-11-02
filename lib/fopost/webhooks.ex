@@ -27,8 +27,7 @@ defmodule FoPost.Webhooks do
 
   `verify/4` prefers the timestamped signature and rejects one older than 300 seconds;
   it falls back to the plain body signature only when no timestamp header arrived.
-  Every comparison is constant time. The website target of `FoPost.Blog` signs its
-  requests the same way, with the secret from `FoPost.Blog.update_settings/3`.
+  Every comparison is constant time.
   """
 
   alias FoPost.Client
@@ -46,8 +45,7 @@ defmodule FoPost.Webhooks do
     "delivery.published",
     "delivery.failed",
     "delivery.delayed",
-    "account.health_changed",
-    "article.published"
+    "account.health_changed"
   ]
 
   @tolerance 300
