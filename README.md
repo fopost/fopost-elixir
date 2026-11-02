@@ -463,47 +463,6 @@ Responses relay Google's own shape as plain maps. Reads need the `accounts` scop
 `publish` as well. Every call answers a 503 `configuration_error` until Google grants the
 deployment Business Profile API access.
 
-## Blog
-
-`FoPost.Blog` plans keywords, writes articles and publishes them to a target: the product
-blog, a connected account, or your own website. A post goes to a social network; an
-article goes to a website. Requesting an article spends AI credits (scope `ai`) and comes
-back `queued`; poll for the draft:
-
-```elixir
-{:ok, article} =
-  FoPost.Blog.request_article(client, workspace.id,
-    keyword: "social media calendar",
-    instructions: "Lead with the calendar view."
-  )
-
-{:ok, draft} = FoPost.Blog.get_article(client, workspace.id, article.id)
-{:ok, _article} = FoPost.Blog.submit_article(client, workspace.id, article.id)
-{:ok, _article} = FoPost.Blog.publish_article(client, workspace.id, article.id)
-```
-
-Nothing publishes without approval: `submit_article/3` moves a draft to `"in_review"`,
-and only then can it be published or scheduled. Planning is goal-driven: set `:goal`,
-`:focus_topics` and `:avoid_topics` on the settings, refine search terms with
-`suggest_seeds/3`, then research them with `plan_keywords/3`. Results land as
-`"suggested"` keywords; setting one to `"planned"` picks it for the next free date.
-
-A website target receives each published article as a signed request, with the secret
-`FoPost.Blog.update_settings/3` returns once when `:website_url` is first set. Verify it
-like any other delivery and read the payload as `FoPost.BlogArticlePublished`:
-
-```elixir
-{:ok, raw, conn} = Plug.Conn.read_body(conn)
-
-with {:ok, %{event: "article.published"} = event} <-
-       FoPost.Webhooks.verify(raw, conn.req_headers, website_secret) do
-  article = FoPost.BlogArticlePublished.from_map(event.data)
-  store(article.slug, article.body_html, article.images)
-end
-```
-
-Image URLs in the payload stay fetchable for six hours, so store your own copy.
-
 ## Analytics
 
 ```elixir

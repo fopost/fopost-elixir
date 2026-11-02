@@ -3,7 +3,8 @@ defmodule FoPost.Result do
 
   # Backs the bang variant of every resource function.
 
-  @spec unwrap!({:ok, term()} | {:error, Exception.t()}) :: term()
+  @spec unwrap!(:ok | {:ok, term()} | {:error, Exception.t()}) :: term()
+  def unwrap!(:ok), do: :ok
   def unwrap!({:ok, result}), do: result
   def unwrap!({:error, error}), do: raise(error)
 end

@@ -68,7 +68,6 @@ defmodule FoPost.MixProject do
           FoPost.Ads,
           FoPost.Analytics,
           FoPost.Automations,
-          FoPost.Blog,
           FoPost.Communities,
           FoPost.ConnectSessions,
           FoPost.Inbox,
