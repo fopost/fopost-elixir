@@ -12,9 +12,14 @@ All notable changes to this project are documented in this file. The format foll
   `FoPost.BlogSettings`, `FoPost.BlogWebsiteTest`, `FoPost.BlogPlanRun`), retired with the
   API's `/v1/blog` endpoints, and the `article.published` event from `FoPost.Webhooks.events/0`.
   `FoPost.Blogs` (articles on a connected site) is unchanged.
+- The `:platform`, `:state` and `:q` filters of `FoPost.Inbox.list/2`, `threads/2` and
+  `conversations/2`, and the `unanswered` sort, matching the inbox list API.
 
 ### Added
 
+- `FoPost.Inbox.resolve/2` and `resolve!/2` resolve every unanswered item of one type,
+  optionally only on some accounts and only items dated before a cutoff, and answer how many
+  changed (scope `inbox`).
 - `FoPost.Ads` pixels: `pixels/2`, `create_pixel/2`, `pixel/3`, `update_pixel/3`,
   `share_pixel/3`, `pixel_stats/3`, and `event_match_quality/3` (scope `ads`).
 - `FoPost.Ads.send_pixel_conversions/3`: the Conversions API send with a required
@@ -42,6 +47,9 @@ All notable changes to this project are documented in this file. The format foll
 
 - `FoPost.Ads.upload_conversions/2` answers a `FoPost.ConversionUploadResult` (`:id`,
   `:accepted`, `:event_count`, `:replayed`) instead of the accepted count alone.
+- `FoPost.Inbox.list/2`, `threads/2` and `conversations/2` take `:account_id` as one id or a
+  list (sent comma-separated), plus `:status` (`unanswered`, `replied`, `resolved`) and
+  `:since`.
 
 ## [0.4.0] - 2026-10-18
 
