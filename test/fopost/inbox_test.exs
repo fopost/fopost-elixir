@@ -14,8 +14,11 @@ defmodule FoPost.InboxTest do
 
       assert conn.query_params == %{
                "workspace_id" => "ws_1",
-               "state" => "unread",
                "type" => "comment",
+               "account_id" => "acc_1,acc_2",
+               "status" => "unanswered",
+               "since" => "2026-09-01T00:00:00Z",
+               "sort" => "oldest",
                "per_page" => "10"
              }
 
@@ -41,7 +44,17 @@ defmodule FoPost.InboxTest do
     end)
 
     client = TestSupport.client(bypass)
-    opts = [workspace_id: "ws_1", state: "unread", type: "comment", per_page: 10, q: nil]
+
+    opts = [
+      workspace_id: "ws_1",
+      type: "comment",
+      account_id: ["acc_1", "acc_2"],
+      status: "unanswered",
+      since: ~U[2026-09-01 00:00:00Z],
+      sort: "oldest",
+      per_page: 10,
+      post_id: nil
+    ]
 
     assert {:ok, page} = Inbox.list(client, opts)
     assert [item] = page.data
@@ -120,6 +133,52 @@ defmodule FoPost.InboxTest do
     opts = [workspace_id: "ws_1", account_id: "acc_1", post_external_id: "ext_1"]
 
     assert {:ok, 3} = Inbox.mark_thread_read(client, opts)
+  end
+
+  test "threads and conversations send the status filters", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/v1/inbox/posts", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params == %{"kind" => "mentions", "status" => "replied"}
+      TestSupport.json(conn, 200, %{"data" => [], "meta" => %{"page" => 1, "total" => 0}})
+    end)
+
+    Bypass.expect_once(bypass, "GET", "/v1/inbox/conversations", fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params == %{"account_id" => "acc_1", "status" => "resolved"}
+      TestSupport.json(conn, 200, %{"data" => [], "meta" => %{"page" => 1, "total" => 0}})
+    end)
+
+    client = TestSupport.client(bypass)
+    assert {:ok, %{data: []}} = Inbox.threads(client, kind: "mentions", status: "replied")
+
+    assert {:ok, %{data: []}} =
+             Inbox.conversations(client, account_id: "acc_1", status: "resolved")
+  end
+
+  test "resolve posts the bulk body and answers the count", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/inbox/resolve", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+
+      assert Jason.decode!(raw) == %{
+               "workspace_id" => "ws_1",
+               "type" => "comment",
+               "account_id" => ["acc_1"],
+               "before" => "2026-10-01T00:00:00Z"
+             }
+
+      TestSupport.json(conn, 200, %{"data" => %{"resolved" => 7}})
+    end)
+
+    client = TestSupport.client(bypass)
+
+    opts = [
+      workspace_id: "ws_1",
+      type: "comment",
+      account_id: "acc_1",
+      before: ~U[2026-10-01 00:00:00Z]
+    ]
+
+    assert {:ok, 7} = Inbox.resolve(client, opts)
   end
 
   test "unread_count reads the unwrapped count", %{bypass: bypass} do
