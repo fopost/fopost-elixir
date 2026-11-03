@@ -358,8 +358,9 @@ Campaign-tree objects are addressed by Meta id and read live, so those calls tak
 `:connection_id`.
 
 ```elixir
-{:ok, page} = FoPost.Inbox.list(client, workspace_id: workspace.id, state: "unread")
+{:ok, page} = FoPost.Inbox.list(client, workspace_id: workspace.id, status: "unanswered")
 {:ok, result} = FoPost.Inbox.reply(client, hd(page.data).id, text: "Thanks!")
+{:ok, _count} = FoPost.Inbox.resolve(client, workspace_id: workspace.id, type: "comment")
 
 {:ok, ad} =
   FoPost.Ads.boost(client,

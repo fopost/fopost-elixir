@@ -5,7 +5,7 @@ defmodule FoPost.Inbox do
   Every function needs the `inbox` scope. Lists answer a `FoPost.Page` whose
   `meta.current_page`, `meta.per_page`, and `meta.total` are set.
 
-      {:ok, page} = FoPost.Inbox.list(client, workspace_id: id, state: "unread")
+      {:ok, page} = FoPost.Inbox.list(client, workspace_id: id, status: "unanswered")
       {:ok, result} = FoPost.Inbox.reply(client, item.id, text: "Thanks!")
   """
 
@@ -29,14 +29,13 @@ defmodule FoPost.Inbox do
   @list_params [
     :workspace_id,
     :type,
-    :state,
-    :platform,
     :account_id,
+    :status,
+    :since,
     :post_id,
     :post_external_id,
     :conversation_id,
     :direction,
-    :q,
     :sort,
     :page,
     :per_page
@@ -45,10 +44,9 @@ defmodule FoPost.Inbox do
   @thread_params [
     :workspace_id,
     :kind,
-    :platform,
     :account_id,
-    :state,
-    :q,
+    :status,
+    :since,
     :sort,
     :page,
     :per_page
@@ -56,10 +54,9 @@ defmodule FoPost.Inbox do
 
   @conversation_params [
     :workspace_id,
-    :platform,
     :account_id,
-    :state,
-    :q,
+    :status,
+    :since,
     :sort,
     :page,
     :per_page
@@ -68,14 +65,14 @@ defmodule FoPost.Inbox do
   @doc """
   One page of items, newest first.
 
-  Filters: `:workspace_id`, `:type` (`comment`, `mention`, `review`, `dm`), `:state` (`unread`,
-  `read`, `resolved`, `snoozed`), `:platform`, `:account_id`, `:post_id`,
-  `:post_external_id`, `:conversation_id`, `:direction` (`inbound`, `outbound`), `:q`,
-  `:sort` (`newest`, `oldest`, `unanswered`). Paging: `:page`, `:per_page`.
+  Filters: `:workspace_id`, `:type` (`comment`, `mention`, `review`, `dm`), `:account_id`
+  (one id or a list), `:status` (`unanswered`, `replied`, `resolved`), `:since` (a `DateTime`
+  or an ISO 8601 string), `:post_id`, `:post_external_id`, `:conversation_id`, `:direction`
+  (`inbound`, `outbound`), `:sort` (`newest`, `oldest`). Paging: `:page`, `:per_page`.
   """
   @spec list(Client.t(), keyword()) :: {:ok, Page.t()} | {:error, FoPost.Error.t()}
   def list(client, opts \\ []) do
-    params = Model.take_params(opts, @list_params)
+    params = filter_params(opts, @list_params)
 
     with {:ok, data} <- Client.request(client, :get, "/inbox", params: params, unwrap: false) do
       {:ok, Page.from_map(data, InboxItem)}
@@ -86,12 +83,12 @@ defmodule FoPost.Inbox do
   One page of threads: one row per post with comments, with mentions when `:kind` is
   `"mentions"`, or one row per review when it is `"reviews"`.
 
-  Filters: `:workspace_id`, `:kind` (`comments`, `mentions`, `reviews`), `:platform`, `:account_id`,
-  `:state`, `:q`, `:sort`. Paging: `:page`, `:per_page`.
+  Filters: `:workspace_id`, `:kind` (`comments`, `mentions`, `reviews`), `:account_id`,
+  `:status`, `:since`, `:sort`, as in `list/2`. Paging: `:page`, `:per_page`.
   """
   @spec threads(Client.t(), keyword()) :: {:ok, Page.t()} | {:error, FoPost.Error.t()}
   def threads(client, opts \\ []) do
-    params = Model.take_params(opts, @thread_params)
+    params = filter_params(opts, @thread_params)
     req = [params: params, unwrap: false]
 
     with {:ok, data} <- Client.request(client, :get, "/inbox/posts", req) do
@@ -102,12 +99,12 @@ defmodule FoPost.Inbox do
   @doc """
   One page of direct-message threads, latest first.
 
-  Filters: `:workspace_id`, `:platform`, `:account_id`, `:state`, `:q`, `:sort`. Paging:
-  `:page`, `:per_page`.
+  Filters: `:workspace_id`, `:account_id`, `:status`, `:since`, `:sort`, as in `list/2`.
+  Paging: `:page`, `:per_page`.
   """
   @spec conversations(Client.t(), keyword()) :: {:ok, Page.t()} | {:error, FoPost.Error.t()}
   def conversations(client, opts \\ []) do
-    params = Model.take_params(opts, @conversation_params)
+    params = filter_params(opts, @conversation_params)
     req = [params: params, unwrap: false]
 
     with {:ok, data} <- Client.request(client, :get, "/inbox/conversations", req) do
@@ -177,6 +174,27 @@ defmodule FoPost.Inbox do
 
     with {:ok, data} <- Client.request(client, :post, "/inbox/refresh", json: body) do
       {:ok, InboxRefreshResult.from_map(data)}
+    end
+  end
+
+  @doc """
+  Resolves every unanswered item of one type; answers how many items changed. Nothing reaches
+  a platform.
+
+  Required: `:workspace_id`, `:type` (`comment`, `mention`, `review`, `dm`). Optional:
+  `:account_id` (one id or a list) and `:before` (a `DateTime` or an ISO 8601 string), which
+  keep it to those accounts and to items dated before it.
+  """
+  @spec resolve(Client.t(), keyword()) :: {:ok, integer()} | {:error, FoPost.Error.t()}
+  def resolve(client, opts) do
+    body =
+      opts
+      |> Keyword.replace_lazy(:account_id, &wrap_ids/1)
+      |> Keyword.replace_lazy(:before, &Model.to_iso8601/1)
+      |> Model.take_body([:workspace_id, :type, :account_id, :before])
+
+    with {:ok, data} <- Client.request(client, :post, "/inbox/resolve", json: body) do
+      {:ok, resolved(data)}
     end
   end
 
@@ -488,6 +506,9 @@ defmodule FoPost.Inbox do
   @doc "Same as `refresh/2`, but raises `FoPost.Error`."
   def refresh!(client, opts), do: Result.unwrap!(refresh(client, opts))
 
+  @doc "Same as `resolve/2`, but raises `FoPost.Error`."
+  def resolve!(client, opts), do: Result.unwrap!(resolve(client, opts))
+
   @doc "Same as `update/3`, but raises `FoPost.Error`."
   def update!(client, id, opts), do: Result.unwrap!(update(client, id, opts))
 
@@ -569,6 +590,20 @@ defmodule FoPost.Inbox do
     end
   end
 
+  # A list of accounts goes on the query string comma-separated, the form the API reads.
+  defp filter_params(opts, keys) do
+    opts
+    |> Keyword.replace_lazy(:account_id, &join_ids/1)
+    |> Keyword.replace_lazy(:since, &Model.to_iso8601/1)
+    |> Model.take_params(keys)
+  end
+
+  defp join_ids(ids) when is_list(ids), do: Enum.join(ids, ",")
+  defp join_ids(id), do: id
+
+  defp wrap_ids(nil), do: nil
+  defp wrap_ids(ids), do: List.wrap(ids)
+
   defp count(%{"count" => count}) when is_integer(count), do: count
   defp count(_data), do: 0
 
@@ -577,6 +612,9 @@ defmodule FoPost.Inbox do
 
   defp updated(%{"updated" => updated}) when is_integer(updated), do: updated
   defp updated(_data), do: 0
+
+  defp resolved(%{"resolved" => resolved}) when is_integer(resolved), do: resolved
+  defp resolved(_data), do: 0
 
   defp path(id), do: "/inbox/" <> encode(id)
   defp path(id, action), do: path(id) <> "/" <> action
