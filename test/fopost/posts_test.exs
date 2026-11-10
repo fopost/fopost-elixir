@@ -174,6 +174,34 @@ defmodule FoPost.PostsTest do
     end
   end
 
+  test "bulk import sends default accounts only when given", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/posts/bulk-import/validate", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      refute raw =~ ~s(name="accounts")
+      TestSupport.json(conn, 200, %{"total_rows" => 1, "valid_rows" => 1, "rows" => []})
+    end)
+
+    Bypass.expect_once(bypass, "POST", "/v1/posts/bulk-import/commit", fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      assert raw =~ ~s(name="accounts"\r\n\r\ntwitter,linkedin)
+      TestSupport.json(conn, 201, %{"batch_id" => "b1", "created" => 1, "posts" => []})
+    end)
+
+    client = TestSupport.client(bypass)
+    file = {"posts.csv", "content\nHi\n"}
+
+    assert {:ok, _} = FoPost.Posts.validate_bulk_import(client, workspace_id: "ws_1", file: file)
+
+    assert {:ok, result} =
+             FoPost.Posts.commit_bulk_import(client,
+               workspace_id: "ws_1",
+               file: file,
+               accounts: ["twitter", "linkedin"]
+             )
+
+    assert result.batch_id == "b1"
+  end
+
   describe "files on a post" do
     defp presigned_slot(bypass) do
       %{
