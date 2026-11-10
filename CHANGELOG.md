@@ -17,6 +17,9 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Posts.validate_bulk_import/2` and `commit_bulk_import/2` take an optional
+  `:accounts` list (account ids or platform names), sent comma-separated and applied to
+  every CSV row whose own `accounts` cell is empty.
 - `FoPost.Inbox.resolve/2` and `resolve!/2` resolve every unanswered item of one type,
   optionally only on some accounts and only items dated before a cutoff, and answer how many
   changed (scope `inbox`).

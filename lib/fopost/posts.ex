@@ -389,7 +389,8 @@ defmodule FoPost.Posts do
   Dry-runs a CSV import and reports per-row results without creating anything.
 
   `:file` is a path, a `{filename, content}` tuple, or a map of `:filename` and
-  `:content`.
+  `:content`. `:accounts` (ids or platform names) applies to rows whose own
+  accounts cell is empty.
   """
   @spec validate_bulk_import(Client.t(), keyword()) ::
           {:ok, BulkImportValidation.t()} | {:error, FoPost.Error.t()}
@@ -401,6 +402,7 @@ defmodule FoPost.Posts do
 
   @doc """
   Creates the posts a CSV describes. Keep the batch id to roll the import back.
+  Takes the same options as `validate_bulk_import/2`.
   """
   @spec commit_bulk_import(Client.t(), keyword()) ::
           {:ok, BulkImportResult.t()} | {:error, FoPost.Error.t()}
@@ -526,6 +528,12 @@ defmodule FoPost.Posts do
       workspace_id: Keyword.get(opts, :workspace_id),
       file: {content, [filename: filename, content_type: "text/csv"]}
     ]
+
+    form =
+      case List.wrap(Keyword.get(opts, :accounts)) do
+        [] -> form
+        accounts -> form ++ [accounts: Enum.join(accounts, ",")]
+      end
 
     Client.request(client, :post, path, form_multipart: form)
   end
