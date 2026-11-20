@@ -148,3 +148,30 @@ defmodule FoPost.UploadLimits do
 
   defp next_tier(_tier), do: nil
 end
+
+defmodule FoPost.MediaAltText do
+  @moduledoc """
+  Alt text generated for a media asset and saved on it, with the tags read from the image.
+  `:alt_text_source` is `"ai"`.
+  """
+
+  alias FoPost.Model
+
+  defstruct [:alt_text, :alt_text_source, :raw, tags: []]
+
+  @type t :: %__MODULE__{}
+
+  @doc false
+  def from_map(data) when is_map(data) do
+    fields = Model.normalize(data)
+
+    %__MODULE__{
+      alt_text: fields["alt_text"],
+      alt_text_source: fields["alt_text_source"],
+      tags: fields["tags"] || [],
+      raw: data
+    }
+  end
+
+  def from_map(_data), do: nil
+end

@@ -301,4 +301,23 @@ defmodule FoPost.MediaTest do
                folder_id: "fld_1"
              )
   end
+
+  test "generate_alt_text posts to the asset and decodes the saved text" do
+    bypass = Bypass.open()
+
+    Bypass.expect_once(bypass, "POST", "/v1/media/med_1/alt-text", fn conn ->
+      TestSupport.json(conn, 200, %{
+        "alt_text" => "A bar chart of monthly sign-ups",
+        "alt_text_source" => "ai",
+        "tags" => ["chart", "growth"]
+      })
+    end)
+
+    assert {:ok, %FoPost.MediaAltText{} = alt} =
+             FoPost.Media.generate_alt_text(TestSupport.client(bypass), "med_1")
+
+    assert alt.alt_text == "A bar chart of monthly sign-ups"
+    assert alt.alt_text_source == "ai"
+    assert alt.tags == ["chart", "growth"]
+  end
 end
