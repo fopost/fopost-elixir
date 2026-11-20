@@ -17,6 +17,18 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `FoPost.Designs`: `list/3`, `create/2`, `get/2`, `update/3`, `delete/2`, `versions/3`,
+  `restore_version/3`, `duplicate/3`, `export/3`, `bulk/3`, `posts/2`, `text_to_slides/2`,
+  and `from_post/2`, with `FoPost.Design`, `FoPost.DesignVersion`, `FoPost.DesignChange`,
+  `FoPost.DesignExport`, `FoPost.DesignPost`, and `FoPost.SlideOutline`. The design
+  document passes through as a plain map (scope `posts`; `text_to_slides/2` also `ai`).
+- `FoPost.Fonts`: `list/2`, `upload/2` from a path, bytes, or a map, and `delete/2`, with
+  `FoPost.FontList`, `FoPost.Font`, and `FoPost.LibraryFont` (scope `posts`).
+- `FoPost.VideoEdits`: `ops/1`, `list/2`, `create/2` with `operations: [%{op, params}]`
+  and an optional `:idempotency_key`, and `get/3`, answering `FoPost.VideoEdit` (scope
+  `posts`; operations with `uses_ai` also `ai`).
+- `FoPost.Media.generate_alt_text/2` writes alt text and tags onto an image, answering
+  `FoPost.MediaAltText` (scope `ai`).
 - `FoPost.Posts.validate_bulk_import/2` and `commit_bulk_import/2` take an optional
   `:accounts` list (account ids or platform names), sent comma-separated and applied to
   every CSV row whose own `accounts` cell is empty.

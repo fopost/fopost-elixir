@@ -30,6 +30,7 @@ defmodule FoPost.Media do
 
   alias FoPost.Client
   alias FoPost.Files
+  alias FoPost.MediaAltText
   alias FoPost.MediaAsset
   alias FoPost.Message
   alias FoPost.Model
@@ -167,6 +168,20 @@ defmodule FoPost.Media do
     end
   end
 
+  @doc """
+  Generates alt text for an image and saves it on the asset, with tags read from the
+  image. Spends AI balance and needs the `ai` scope.
+  """
+  @spec generate_alt_text(Client.t(), String.t()) ::
+          {:ok, MediaAltText.t()} | {:error, FoPost.Error.t()}
+  def generate_alt_text(client, id) do
+    path = "/media/" <> URI.encode(to_string(id), &URI.char_unreserved?/1) <> "/alt-text"
+
+    with {:ok, data} <- Client.request(client, :post, path) do
+      {:ok, MediaAltText.from_map(data)}
+    end
+  end
+
   @doc "Same as `list/2`, but raises `FoPost.Error`."
   def list!(client, opts \\ []), do: Result.unwrap!(list(client, opts))
 
@@ -189,6 +204,9 @@ defmodule FoPost.Media do
 
   @doc "Same as `delete/2`, but raises `FoPost.Error`."
   def delete!(client, id), do: Result.unwrap!(delete(client, id))
+
+  @doc "Same as `generate_alt_text/2`, but raises `FoPost.Error`."
+  def generate_alt_text!(client, id), do: Result.unwrap!(generate_alt_text(client, id))
 
   defp source({:file, path}), do: %{path: path}
   defp source(data) when is_binary(data), do: %{data: data}
