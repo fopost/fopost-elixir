@@ -278,7 +278,8 @@ options, so `:params`, `:json`, and `:form_multipart` all work.
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Contacts` ·
 `FoPost.Broadcasts` · `FoPost.Sequences` · `FoPost.Knowledge` · `FoPost.Ads` ·
 `FoPost.Validate` · `FoPost.Activity` · `FoPost.Blog` · `FoPost.Blogs` · `FoPost.Whatsapp` ·
-`FoPost.Queue` · `FoPost.ConnectSessions` · `FoPost.Logs` · `FoPost.X`
+`FoPost.Queue` · `FoPost.ConnectSessions` · `FoPost.Logs` · `FoPost.X` · `FoPost.Designs` ·
+`FoPost.Fonts` · `FoPost.VideoEdits`
 `FoPost.Automations` · `FoPost.Media` · `FoPost.Inbox` · `FoPost.Ads` · `FoPost.Validate` · `FoPost.GoogleBusiness`
 
 ## Inbox, contacts, broadcasts and ads
@@ -574,6 +575,44 @@ template.status
 {:ok, _} = FoPost.Whatsapp.publish_flow(client, account_id, flow.id)
 {:ok, answers} = FoPost.Whatsapp.flow_responses(client, account_id)
 ```
+
+## Designs, fonts and video edits
+
+`FoPost.Designs` builds stories, posts, carousels, thumbnails, cards and collages. The
+design document is a plain map with string keys: read it from `design.document`, change
+it, and send it back.
+
+```elixir
+{:ok, design} = FoPost.Designs.create(client, workspace_id: workspace_id, kind: "post")
+
+{:ok, change} =
+  FoPost.Designs.update(client, design.id, document: doc, create_version: true)
+
+{:ok, export} = FoPost.Designs.export(client, design.id, format: "png")
+Enum.map(export.files, & &1.media_id)
+
+# One design per row of a template
+{:ok, designs} = FoPost.Designs.bulk(client, design.id, rows: [%{"title" => "Spring sale"}])
+```
+
+`FoPost.Fonts` lists the built-in library and uploads a workspace's own font files.
+`FoPost.VideoEdits` runs operations on a video in the media library as a background job;
+read it back with `get/3` until `:status` is `"succeeded"` or `"failed"`.
+
+```elixir
+{:ok, font} = FoPost.Fonts.upload(client, workspace_id: workspace_id, file: "Brand.woff2")
+
+{:ok, job} =
+  FoPost.VideoEdits.create(client,
+    media_id: video.id,
+    operations: [%{op: "trim", params: %{startSec: 0, endSec: 30}}]
+  )
+
+{:ok, alt} = FoPost.Media.generate_alt_text(client, image.id)
+```
+
+`FoPost.Designs.text_to_slides/2`, `FoPost.Media.generate_alt_text/2` and any video edit
+operation with `uses_ai` spend AI balance and need the `ai` scope.
 
 ## Examples
 
