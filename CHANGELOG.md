@@ -14,6 +14,29 @@ All notable changes to this project are documented in this file. The format foll
   `FoPost.Blogs` (articles on a connected site) is unchanged.
 - The `:platform`, `:state` and `:q` filters of `FoPost.Inbox.list/2`, `threads/2` and
   `conversations/2`, and the `unanswered` sort, matching the inbox list API.
+- `FoPost.Ads` campaign tree, creatives, product catalogs, and Ad Library functions, with
+  their bang variants, retired with the matching `/v1/ads` endpoints: `account_tree/3`,
+  the campaign, ad set, and network ad create/get/update/delete/duplicate functions,
+  `creatives/2`, `create_creative/2`, `get_creative/3`, `delete_creative/3`, `catalogs/2`,
+  `create_catalog/2`, `get_catalog/3`, `update_catalog/3`, `delete_catalog/3`,
+  `catalog_products/3`, `write_catalog_products/3`, the product feed, feed upload, and
+  product set functions, and `library/2`. The `:smart_plus` option goes with
+  `create_campaign/2`. `bulk_set_status/2` is unchanged.
+- `FoPost.GoogleAds` keyword, keyword idea and metric, search term, negative keyword list,
+  asset, asset group, recommendation, and optimization score functions. Bid strategies,
+  ad schedules, Local Services leads, conversions, and `query/2` remain.
+- The models only those functions answered: `FoPost.AdAccountTree`, `FoPost.AdCampaign`,
+  `FoPost.AdSet`, `FoPost.NetworkAd`, `FoPost.AdCreative`, `FoPost.ProductCatalog`,
+  `FoPost.CatalogProduct`, `FoPost.CatalogProductsPage`, `FoPost.CatalogBatchResult`,
+  `FoPost.ProductFeed`, `FoPost.ProductFeedUpload`, `FoPost.ProductSet`,
+  `FoPost.AdLibraryEntry`, `FoPost.AdLibraryPage`, `FoPost.GoogleKeyword`,
+  `FoPost.GoogleKeywordIdea`, `FoPost.GoogleSearchTerm`, `FoPost.GoogleSharedSet`,
+  `FoPost.GoogleAsset`, `FoPost.GoogleAssetLink`, `FoPost.GoogleAssets`,
+  `FoPost.GoogleAssetGroup`, `FoPost.GoogleRecommendation`,
+  `FoPost.GoogleRecommendationImpact`, `FoPost.GoogleOptimizationScore`, and
+  `FoPost.GoogleOptimizationScoreCampaign`.
+- `creatives`, `catalogs`, `adLibrary`, and `smartPlus` are no longer among the
+  `FoPost.AdProvider` capabilities the API reports.
 
 ### Added
 
