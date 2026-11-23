@@ -1,19 +1,18 @@
 defmodule FoPost.GoogleAds do
   @moduledoc """
-  Google Ads: keywords, assets, Performance Max asset groups, Local Services leads,
-  conversions, and raw GAQL.
+  Google Ads: bid strategies, ad schedules, Local Services leads, conversions, and raw
+  GAQL.
 
-  Campaigns, ad groups, ads, audiences, and insights are on `FoPost.Ads` and dispatch by
-  connection; a connection on another network answers 400 here. Every function needs the
-  `ads` scope, and anything that changes what a live account serves or bids also needs
-  `publish`.
+  Ads, audiences, and insights are on `FoPost.Ads` and dispatch by connection; a
+  connection on another network answers 400 here. Every function needs the `ads` scope,
+  and anything that changes what a live account serves or bids also needs `publish`.
 
   Every call names `:connection_id` and `:customer_id`. The customer id is digits only
   and has to name an account the connection's grant reaches: any other answers 404.
   `:workspace_id` may be left out on a read, and is required on a write.
 
-      {:ok, keywords} =
-        FoPost.GoogleAds.keywords(client,
+      {:ok, strategies} =
+        FoPost.GoogleAds.bid_strategies(client,
           connection_id: connection.id,
           customer_id: "1234567890"
         )
@@ -25,17 +24,9 @@ defmodule FoPost.GoogleAds do
 
   alias FoPost.Client
   alias FoPost.GoogleAdScheduleSlot
-  alias FoPost.GoogleAssetGroup
-  alias FoPost.GoogleAssets
   alias FoPost.GoogleBidStrategy
   alias FoPost.GoogleConversionAction
-  alias FoPost.GoogleKeyword
-  alias FoPost.GoogleKeywordIdea
   alias FoPost.GoogleLocalServicesLead
-  alias FoPost.GoogleOptimizationScore
-  alias FoPost.GoogleRecommendation
-  alias FoPost.GoogleSearchTerm
-  alias FoPost.GoogleSharedSet
   alias FoPost.Model
   alias FoPost.Result
 
@@ -45,109 +36,6 @@ defmodule FoPost.GoogleAds do
     {:connection_id, "connectionId"},
     {:customer_id, "customerId"}
   ]
-
-  # ── Keywords ──
-
-  @doc """
-  Keywords on the account, or on one ad group with `:ad_group_id`.
-  """
-  @spec keywords(Client.t(), keyword()) :: {:ok, [GoogleKeyword.t()]} | {:error, FoPost.Error.t()}
-  def keywords(client, opts) do
-    params = Model.take_params(opts, @scope_params ++ [:ad_group_id])
-
-    with {:ok, data} <- Client.request(client, :get, "/ads/google/keywords", params: params) do
-      {:ok, Model.list(GoogleKeyword, data)}
-    end
-  end
-
-  @doc """
-  Adds a keyword. Required: `:ad_group_id`, `:text`, `:match_type` (`EXACT`, `PHRASE`,
-  or `BROAD`). Optional: `:cpc_bid_minor`. Needs `publish` as well as `ads`.
-  """
-  @spec create_keyword(Client.t(), keyword()) :: {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def create_keyword(client, opts) do
-    body =
-      Model.take_body(
-        opts,
-        @scope_body ++
-          [
-            {:ad_group_id, "adGroupId"},
-            :text,
-            {:match_type, "matchType"},
-            {:cpc_bid_minor, "cpcBidMinor"}
-          ]
-      )
-
-    created(client, :post, "/ads/google/keywords", body)
-  end
-
-  @doc """
-  Pauses, resumes, or rebids a keyword. `:status` is `"active"` or `"paused"`.
-  Needs `publish` as well as `ads`.
-  """
-  @spec update_keyword(Client.t(), String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def update_keyword(client, keyword_id, opts) do
-    body = Model.take_body(opts, @scope_body ++ [:status, {:cpc_bid_minor, "cpcBidMinor"}])
-
-    created(client, :patch, "/ads/google/keywords/" <> encode(keyword_id), body)
-  end
-
-  @doc """
-  Removes a keyword. Needs `publish` as well as `ads`.
-  """
-  @spec delete_keyword(Client.t(), String.t(), keyword()) :: :ok | {:error, FoPost.Error.t()}
-  def delete_keyword(client, keyword_id, opts) do
-    discard(client, "/ads/google/keywords/" <> encode(keyword_id), opts)
-  end
-
-  @doc """
-  Keyword ideas from `:seeds`, a `:url`, or both. Optional: `:language_id`,
-  `:geo_target_ids`.
-  """
-  @spec keyword_ideas(Client.t(), keyword()) ::
-          {:ok, [GoogleKeywordIdea.t()]} | {:error, FoPost.Error.t()}
-  def keyword_ideas(client, opts) do
-    body =
-      Model.take_body(
-        opts,
-        @scope_body ++
-          [:seeds, :url, {:language_id, "languageId"}, {:geo_target_ids, "geoTargetIds"}]
-      )
-
-    with {:ok, data} <-
-           Client.request(client, :post, "/ads/google/keyword-ideas", json: body) do
-      {:ok, Model.list(GoogleKeywordIdea, data)}
-    end
-  end
-
-  @doc """
-  Historical metrics for the `:keywords` given.
-  """
-  @spec keyword_metrics(Client.t(), keyword()) ::
-          {:ok, [GoogleKeywordIdea.t()]} | {:error, FoPost.Error.t()}
-  def keyword_metrics(client, opts) do
-    body = Model.take_body(opts, @scope_body ++ [:keywords])
-
-    with {:ok, data} <-
-           Client.request(client, :post, "/ads/google/keyword-metrics", json: body) do
-      {:ok, Model.list(GoogleKeywordIdea, data)}
-    end
-  end
-
-  @doc """
-  What people actually searched, with the metrics each term earned. Required:
-  `:since` and `:until`, `YYYY-MM-DD`.
-  """
-  @spec search_terms(Client.t(), keyword()) ::
-          {:ok, [GoogleSearchTerm.t()]} | {:error, FoPost.Error.t()}
-  def search_terms(client, opts) do
-    params = Model.take_params(opts, @scope_params ++ [:since, :until])
-
-    with {:ok, data} <- Client.request(client, :get, "/ads/google/search-terms", params: params) do
-      {:ok, Model.list(GoogleSearchTerm, data)}
-    end
-  end
 
   # ── Bid strategies and ad schedule ──
 
@@ -201,171 +89,6 @@ defmodule FoPost.GoogleAds do
     with {:ok, data} <- Client.request(client, :put, "/ads/google/ad-schedule", json: body) do
       {:ok, count(data, "slots")}
     end
-  end
-
-  # ── Negative keyword lists ──
-
-  @doc """
-  The account's negative keyword lists.
-  """
-  @spec negative_keyword_lists(Client.t(), keyword()) ::
-          {:ok, [GoogleSharedSet.t()]} | {:error, FoPost.Error.t()}
-  def negative_keyword_lists(client, opts) do
-    params = Model.take_params(opts, @scope_params)
-
-    with {:ok, data} <-
-           Client.request(client, :get, "/ads/google/negative-keywords", params: params) do
-      {:ok, Model.list(GoogleSharedSet, data)}
-    end
-  end
-
-  @doc """
-  Creates a negative keyword list. Required: `:name`. Needs `publish` as well as `ads`.
-  """
-  @spec create_negative_keyword_list(Client.t(), keyword()) ::
-          {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def create_negative_keyword_list(client, opts) do
-    body = Model.take_body(opts, @scope_body ++ [:name])
-
-    created(client, :post, "/ads/google/negative-keywords", body)
-  end
-
-  @doc """
-  Adds keywords to a list and answers how many landed. Required: `:shared_set_id`,
-  `:keywords`. Needs `publish` as well as `ads`.
-  """
-  @spec add_negative_keywords(Client.t(), keyword()) ::
-          {:ok, integer()} | {:error, FoPost.Error.t()}
-  def add_negative_keywords(client, opts) do
-    body = Model.take_body(opts, @scope_body ++ [{:shared_set_id, "sharedSetId"}, :keywords])
-
-    with {:ok, data} <-
-           Client.request(client, :post, "/ads/google/negative-keywords/keywords", json: body) do
-      {:ok, count(data, "added")}
-    end
-  end
-
-  @doc """
-  Puts a negative keyword list on a campaign. Required: `:shared_set_id`,
-  `:campaign_id`. Needs `publish` as well as `ads`.
-  """
-  @spec attach_negative_keyword_list(Client.t(), keyword()) ::
-          :ok | {:error, FoPost.Error.t()}
-  def attach_negative_keyword_list(client, opts) do
-    body =
-      Model.take_body(
-        opts,
-        @scope_body ++ [{:shared_set_id, "sharedSetId"}, {:campaign_id, "campaignId"}]
-      )
-
-    with {:ok, _data} <-
-           Client.request(client, :post, "/ads/google/negative-keywords/attach", json: body) do
-      :ok
-    end
-  end
-
-  # ── Assets ──
-
-  @doc """
-  Sitelinks, callouts, and snippets, with the links that place each one.
-  """
-  @spec assets(Client.t(), keyword()) :: {:ok, GoogleAssets.t()} | {:error, FoPost.Error.t()}
-  def assets(client, opts) do
-    params = Model.take_params(opts, @scope_params)
-
-    with {:ok, data} <- Client.request(client, :get, "/ads/google/assets", params: params) do
-      {:ok, GoogleAssets.from_map(data)}
-    end
-  end
-
-  @doc """
-  Adds an asset to the library. Required: `:spec`, a sitelink, callout, or snippet.
-  Needs `publish` as well as `ads`.
-  """
-  @spec create_asset(Client.t(), keyword()) :: {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def create_asset(client, opts) do
-    body = Model.take_body(opts, @scope_body ++ [:spec])
-
-    created(client, :post, "/ads/google/assets", body)
-  end
-
-  @doc """
-  Puts an asset under the ads it belongs to. Required: `:asset_id`, `:field_type`.
-  Optional: `:campaign_id`, which attaches to one campaign rather than the account.
-  Needs `publish` as well as `ads`.
-  """
-  @spec attach_asset(Client.t(), keyword()) :: :ok | {:error, FoPost.Error.t()}
-  def attach_asset(client, opts) do
-    body =
-      Model.take_body(
-        opts,
-        @scope_body ++
-          [{:asset_id, "assetId"}, {:field_type, "fieldType"}, {:campaign_id, "campaignId"}]
-      )
-
-    with {:ok, _data} <- Client.request(client, :post, "/ads/google/assets/attach", json: body) do
-      :ok
-    end
-  end
-
-  @doc """
-  Removes the links that put an asset under an ad; on Google the asset itself is
-  permanent. Needs `publish` as well as `ads`.
-  """
-  @spec delete_asset(Client.t(), String.t(), keyword()) :: :ok | {:error, FoPost.Error.t()}
-  def delete_asset(client, asset_id, opts) do
-    discard(client, "/ads/google/assets/" <> encode(asset_id), opts)
-  end
-
-  # ── Performance Max asset groups ──
-
-  @doc """
-  Performance Max asset groups on the account, or on one campaign with `:campaign_id`.
-  """
-  @spec asset_groups(Client.t(), keyword()) ::
-          {:ok, [GoogleAssetGroup.t()]} | {:error, FoPost.Error.t()}
-  def asset_groups(client, opts) do
-    params = Model.take_params(opts, @scope_params ++ [:campaign_id])
-
-    with {:ok, data} <- Client.request(client, :get, "/ads/google/asset-groups", params: params) do
-      {:ok, Model.list(GoogleAssetGroup, data)}
-    end
-  end
-
-  @doc """
-  Creates an asset group, paused unless `:status` says otherwise. Required:
-  `:campaign_id`, `:name`, `:final_urls`. Needs `publish` as well as `ads`.
-  """
-  @spec create_asset_group(Client.t(), keyword()) ::
-          {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def create_asset_group(client, opts) do
-    body =
-      Model.take_body(
-        opts,
-        @scope_body ++
-          [{:campaign_id, "campaignId"}, :name, {:final_urls, "finalUrls"}, :status]
-      )
-
-    created(client, :post, "/ads/google/asset-groups", body)
-  end
-
-  @doc """
-  Renames, pauses, or resumes an asset group. Needs `publish` as well as `ads`.
-  """
-  @spec update_asset_group(Client.t(), String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def update_asset_group(client, asset_group_id, opts) do
-    body = Model.take_body(opts, @scope_body ++ [:name, :status])
-
-    created(client, :patch, "/ads/google/asset-groups/" <> encode(asset_group_id), body)
-  end
-
-  @doc """
-  Removes an asset group. Needs `publish` as well as `ads`.
-  """
-  @spec delete_asset_group(Client.t(), String.t(), keyword()) :: :ok | {:error, FoPost.Error.t()}
-  def delete_asset_group(client, asset_group_id, opts) do
-    discard(client, "/ads/google/asset-groups/" <> encode(asset_group_id), opts)
   end
 
   # ── Local Services leads ──
@@ -440,63 +163,6 @@ defmodule FoPost.GoogleAds do
     uploaded(client, "/ads/google/conversions/adjustments", body)
   end
 
-  # ── Recommendations ──
-
-  @doc """
-  Google's own read on what the account should change next. Optional: `:types`,
-  a list of recommendation types to narrow to.
-  """
-  @spec recommendations(Client.t(), keyword()) ::
-          {:ok, [GoogleRecommendation.t()]} | {:error, FoPost.Error.t()}
-  def recommendations(client, opts) do
-    params =
-      opts
-      |> Model.take_params(@scope_params)
-      |> put_types(Keyword.get(opts, :types))
-
-    with {:ok, data} <-
-           Client.request(client, :get, "/ads/google/recommendations", params: params) do
-      {:ok, Model.list(GoogleRecommendation, data)}
-    end
-  end
-
-  @doc """
-  The account's score and weight, and the score of each live campaign.
-  """
-  @spec optimization_score(Client.t(), keyword()) ::
-          {:ok, GoogleOptimizationScore.t()} | {:error, FoPost.Error.t()}
-  def optimization_score(client, opts) do
-    params = Model.take_params(opts, @scope_params)
-
-    with {:ok, data} <-
-           Client.request(client, :get, "/ads/google/optimization-score", params: params) do
-      {:ok, GoogleOptimizationScore.from_map(data)}
-    end
-  end
-
-  @doc """
-  Applies each one, which changes what the live account serves or bids, and
-  answers how many landed. Required: `:ids`. Needs `publish` as well as `ads`.
-  """
-  @spec apply_recommendations(Client.t(), keyword()) ::
-          {:ok, integer()} | {:error, FoPost.Error.t()}
-  def apply_recommendations(client, opts) do
-    body = Model.take_body(opts, @scope_body ++ [:ids])
-
-    counted(client, "/ads/google/recommendations/apply", body, "applied")
-  end
-
-  @doc """
-  Hides each one so Google stops surfacing it. Required: `:ids`. Needs `publish`.
-  """
-  @spec dismiss_recommendations(Client.t(), keyword()) ::
-          {:ok, integer()} | {:error, FoPost.Error.t()}
-  def dismiss_recommendations(client, opts) do
-    body = Model.take_body(opts, @scope_body ++ [:ids])
-
-    counted(client, "/ads/google/recommendations/dismiss", body, "dismissed")
-  end
-
   # ── GAQL ──
 
   @doc """
@@ -514,21 +180,6 @@ defmodule FoPost.GoogleAds do
   end
 
   # ── Bang variants ──
-
-  @doc "See `keywords/2`."
-  def keywords!(client, opts), do: Result.unwrap!(keywords(client, opts))
-
-  @doc "See `create_keyword/2`."
-  def create_keyword!(client, opts), do: Result.unwrap!(create_keyword(client, opts))
-
-  @doc "See `keyword_ideas/2`."
-  def keyword_ideas!(client, opts), do: Result.unwrap!(keyword_ideas(client, opts))
-
-  @doc "See `assets/2`."
-  def assets!(client, opts), do: Result.unwrap!(assets(client, opts))
-
-  @doc "See `asset_groups/2`."
-  def asset_groups!(client, opts), do: Result.unwrap!(asset_groups(client, opts))
 
   @doc "See `conversion_actions/2`."
   def conversion_actions!(client, opts), do: Result.unwrap!(conversion_actions(client, opts))
@@ -550,19 +201,6 @@ defmodule FoPost.GoogleAds do
     end
   end
 
-  defp put_types(params, nil), do: params
-  defp put_types(params, []), do: params
-  defp put_types(params, types), do: Keyword.put(params, :types, Enum.join(types, ","))
-
-  # A delete carries the scope in its body, the way the API takes it.
-  defp discard(client, path, opts) do
-    body = Model.take_body(opts, @scope_body)
-
-    with {:ok, _data} <- Client.request(client, :delete, path, json: body) do
-      :ok
-    end
-  end
-
   defp id(%{"id" => id}) when is_binary(id), do: id
   defp id(_data), do: ""
 
@@ -571,6 +209,4 @@ defmodule FoPost.GoogleAds do
 
   defp rows(%{"rows" => rows}) when is_list(rows), do: Enum.filter(rows, &is_map/1)
   defp rows(_data), do: []
-
-  defp encode(value), do: URI.encode(to_string(value), &URI.char_unreserved?/1)
 end
