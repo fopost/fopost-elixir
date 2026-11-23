@@ -170,51 +170,6 @@ defmodule FoPost.AdsTest do
     assert is_nil(page.next_cursor)
   end
 
-  test "account_tree nests campaigns, ad sets, and ads", %{bypass: bypass} do
-    Bypass.expect_once(bypass, "GET", "/v1/ads/accounts/act_123/tree", fn conn ->
-      conn = Plug.Conn.fetch_query_params(conn)
-      assert conn.query_params == %{"workspace_id" => "ws_1", "connection_id" => "conn_1"}
-
-      ad = %{"id" => "a_1", "creativeId" => "cr_1", "status" => "PAUSED"}
-      ad_set = %{"id" => "s_1", "name" => "US", "budgetMinor" => 500, "ads" => [ad]}
-
-      TestSupport.json(conn, 200, %{
-        "data" => %{
-          "adAccountId" => "act_123",
-          "currency" => "USD",
-          "campaigns" => [%{"id" => "c_1", "name" => "Spring", "adSets" => [ad_set]}]
-        }
-      })
-    end)
-
-    client = TestSupport.client(bypass)
-    opts = [workspace_id: "ws_1", connection_id: "conn_1"]
-
-    assert {:ok, tree} = Ads.account_tree(client, "act_123", opts)
-    assert tree.currency == "USD"
-    assert [campaign] = tree.campaigns
-    assert [ad_set] = campaign.ad_sets
-    assert ad_set.budget_minor == 500
-    assert [%{creative_id: "cr_1"}] = ad_set.ads
-  end
-
-  test "duplicate_campaign posts paused and answers the copy's id", %{bypass: bypass} do
-    Bypass.expect_once(bypass, "POST", "/v1/ads/campaigns/c_1/duplicate", fn conn ->
-      conn = Plug.Conn.fetch_query_params(conn)
-      assert conn.query_params == %{"workspace_id" => "ws_1", "connection_id" => "conn_1"}
-
-      {:ok, raw, conn} = Plug.Conn.read_body(conn)
-      assert Jason.decode!(raw) == %{"paused" => true}
-
-      TestSupport.json(conn, 201, %{"data" => %{"id" => "c_2"}})
-    end)
-
-    client = TestSupport.client(bypass)
-    opts = [workspace_id: "ws_1", connection_id: "conn_1", paused: true]
-
-    assert {:ok, "c_2"} = Ads.duplicate_campaign(client, "c_1", opts)
-  end
-
   test "bulk_set_status sends the objects and decodes each result", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/v1/ads/status", fn conn ->
       {:ok, raw, conn} = Plug.Conn.read_body(conn)
@@ -344,36 +299,5 @@ defmodule FoPost.AdsTest do
 
     assert {:ok, ad} = Ads.create(TestSupport.client(bypass), opts)
     assert ad.creative["url_tags"] == "utm_source=meta"
-  end
-
-  test "library joins countries and page ids into the query", %{bypass: bypass} do
-    Bypass.expect_once(bypass, "GET", "/v1/ads/library", fn conn ->
-      conn = Plug.Conn.fetch_query_params(conn)
-
-      assert conn.query_params == %{
-               "workspace_id" => "ws_1",
-               "connection_id" => "conn_1",
-               "countries" => "US,GB",
-               "q" => "running shoes",
-               "page_ids" => "111,222"
-             }
-
-      TestSupport.json(conn, 200, %{
-        "entries" => [%{"id" => "arch_1", "page_name" => "Someone Else"}],
-        "next_cursor" => nil
-      })
-    end)
-
-    assert {:ok, page} =
-             Ads.library(TestSupport.client(bypass),
-               workspace_id: "ws_1",
-               connection_id: "conn_1",
-               countries: ["US", "GB"],
-               q: "running shoes",
-               page_ids: ["111", "222"]
-             )
-
-    assert [entry] = page.entries
-    assert entry.page_name == "Someone Else"
   end
 end

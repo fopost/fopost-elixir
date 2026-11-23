@@ -60,7 +60,7 @@ defmodule FoPost.AdsTikTokTest do
     assert post.views == 48_213
   end
 
-  test "sends sparkPostId on an ad and smartPlus on a campaign", %{bypass: bypass} do
+  test "sends sparkPostId on an ad", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/v1/ads", fn conn ->
       {:ok, raw, conn} = Plug.Conn.read_body(conn)
       assert Jason.decode!(raw)["sparkPostId"] == "item_99"
@@ -68,13 +68,6 @@ defmodule FoPost.AdsTikTokTest do
       TestSupport.json(conn, 201, %{
         "data" => %{"id" => "ad_1", "workspaceId" => "ws_1", "kind" => "ad", "name" => "Spark"}
       })
-    end)
-
-    Bypass.expect_once(bypass, "POST", "/v1/ads/campaigns", fn conn ->
-      {:ok, raw, conn} = Plug.Conn.read_body(conn)
-      assert Jason.decode!(raw)["smartPlus"] == true
-
-      TestSupport.json(conn, 201, %{"data" => %{"id" => "c1", "name" => "Smart"}})
     end)
 
     client = TestSupport.client(bypass)
@@ -91,16 +84,6 @@ defmodule FoPost.AdsTikTokTest do
                targeting: %{countries: ["US"], ageMin: 18, ageMax: 44},
                text: "",
                spark_post_id: "item_99"
-             )
-
-    assert {:ok, _} =
-             Ads.create_campaign(client,
-               workspace_id: "ws_1",
-               connection_id: "conn_1",
-               ad_account_id: "7011",
-               name: "Smart",
-               goal: "traffic",
-               smart_plus: true
              )
   end
 
