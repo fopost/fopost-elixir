@@ -350,13 +350,10 @@ told FoPost about itself — FAQs, notes, your own pages and plain-text files �
 `search/3` returns the passages that ground a drafted reply in your own answers rather
 than an invented one (same `inbox` scope).
 `FoPost.Ads` boosts posts, creates ads, and
-manages campaigns, ad sets, creatives, product catalogs, audiences, reach-and-frequency
-predictions, the public ad archive, ad account settings, insights, lead forms, and the
-leads feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`, `delete/3`,
-`bulk_set_status/2`, and the campaign, ad set, and network ad writes spend money and also
-need `publish`). A boost, campaign, ad set, or ad starts paused unless `paused: false`.
-Campaign-tree objects are addressed by Meta id and read live, so those calls take
-`:connection_id`.
+manages audiences, reach-and-frequency predictions, ad account settings, insights, lead
+forms, and the leads feed (scope `ads`; `boost/2`, `create/2`, `set_status/3`,
+`delete/3`, and `bulk_set_status/2` spend money and also need `publish`). A boost or ad
+starts paused unless `paused: false`.
 
 ```elixir
 {:ok, page} = FoPost.Inbox.list(client, workspace_id: workspace.id, status: "unanswered")
@@ -376,14 +373,10 @@ Campaign-tree objects are addressed by Meta id and read live, so those calls tak
     targeting: %{countries: ["US"], ageMin: 18, ageMax: 65, gender: "all"}
   )
 
-meta = [workspace_id: workspace.id, connection_id: connection.id]
-{:ok, tree} = FoPost.Ads.account_tree(client, "act_123", meta)
-{:ok, _copy_id} = FoPost.Ads.duplicate_campaign(client, hd(tree.campaigns).id, meta)
-
 {:ok, report} =
   FoPost.Ads.insights(client,
     connection_id: connection.id,
-    object_id: hd(tree.campaigns).id,
+    object_id: "120210000000001",
     since: "2026-09-01",
     until: "2026-09-07",
     breakdown: "age",
@@ -659,29 +652,27 @@ MIT © Porter Bridge, LLC. See [LICENSE](LICENSE).
 
 ### Google Ads
 
-Campaigns, ad groups, ads, audiences, and insights are on `FoPost.Ads` and dispatch by
-connection. What only Google has is in `FoPost.GoogleAds`:
+Ads, audiences, and insights are on `FoPost.Ads` and dispatch by connection. What only
+Google has is in `FoPost.GoogleAds`:
 
 ```elixir
-{:ok, keywords} =
-  FoPost.GoogleAds.keywords(client,
+{:ok, strategies} =
+  FoPost.GoogleAds.bid_strategies(client,
     connection_id: connection.id,
     customer_id: "1234567890"
   )
 
 {:ok, id} =
-  FoPost.GoogleAds.create_keyword(client,
+  FoPost.GoogleAds.create_bid_strategy(client,
     workspace_id: workspace.id,
     connection_id: connection.id,
     customer_id: "1234567890",
-    ad_group_id: "1234567890~adGroup~77",
-    text: "running shoes",
-    match_type: "EXACT"
+    name: "Target CPA",
+    type: "TARGET_CPA",
+    target_minor: 2_500
   )
 ```
 
-Also `keyword_ideas/2`, `keyword_metrics/2`, `search_terms/2`, `bid_strategies/2`,
-`ad_schedule/2` and `set_ad_schedule/2`, the negative keyword lists, `assets/2` and
-`asset_groups/2`, `local_services_leads/2`, the conversion functions, and `query/2` for a
-raw read-only GAQL SELECT. Changes need the `publish` scope as well as `ads`;
+Also `ad_schedule/2` and `set_ad_schedule/2`, `local_services_leads/2`, the conversion
+functions, and `query/2` for a raw read-only GAQL SELECT. Changes need the `publish` scope as well as `ads`;
 `:customer_id` has to name an account the connection's grant reaches.

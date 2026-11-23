@@ -1,18 +1,16 @@
 defmodule FoPost.Ads do
   @moduledoc """
-  Meta ads: boosts, standalone ads, catalogs, audiences, targeting, predictions,
-  the public ad archive, lead forms, pixels, the Conversions API, and custom conversions.
+  Meta ads: boosts, standalone ads, audiences, targeting, predictions, lead forms,
+  pixels, the Conversions API, and custom conversions.
 
   The Google-only surface is `FoPost.GoogleAds`.
 
   Every function needs the `ads` scope. `boost/2`, `create/2`, `set_status/3`,
-  `delete/3`, `bulk_set_status/2`, and the create, update, delete, and duplicate
-  functions for campaigns, ad sets, and network ads spend money and also need the
-  `publish` scope. A boost, campaign, ad set, or ad starts paused unless `:paused` is
-  `false`.
+  `delete/3`, and `bulk_set_status/2` spend money and also need the `publish` scope.
+  A boost or ad starts paused unless `:paused` is `false`.
 
-  Campaigns, ad sets, network ads, creatives, and audiences are addressed by their Meta
-  id and read live from Meta, so those calls take `:connection_id` as well.
+  Audiences are addressed by their Meta id and read live from Meta, so those calls take
+  `:connection_id` as well.
 
       {:ok, ad} =
         FoPost.Ads.boost(client,
@@ -33,29 +31,22 @@ defmodule FoPost.Ads do
   """
 
   alias FoPost.Ad
-  alias FoPost.AdAccountTree
   alias FoPost.AdActivityResult
   alias FoPost.AdBusinessCenter
-  alias FoPost.AdCampaign
   alias FoPost.AdCommentsPage
   alias FoPost.AdConnection
-  alias FoPost.AdCreative
   alias FoPost.AdIdentity
   alias FoPost.AdInsightsReport
   alias FoPost.AdLabel
-  alias FoPost.AdLibraryPage
   alias FoPost.AdPixel
   alias FoPost.AdPixelDetail
   alias FoPost.AdPixelStats
-  alias FoPost.AdSet
   alias FoPost.AdSource
   alias FoPost.AdStudy
   alias FoPost.Audience
   alias FoPost.AudiencesResult
   alias FoPost.BoostablePost
   alias FoPost.BulkAdStatusResult
-  alias FoPost.CatalogBatchResult
-  alias FoPost.CatalogProductsPage
   alias FoPost.Client
   alias FoPost.ConversionBatch
   alias FoPost.ConversionUploadResult
@@ -73,12 +64,7 @@ defmodule FoPost.Ads do
   alias FoPost.LeadsPage
   alias FoPost.Message
   alias FoPost.Model
-  alias FoPost.NetworkAd
   alias FoPost.PartnershipCreator
-  alias FoPost.ProductCatalog
-  alias FoPost.ProductFeed
-  alias FoPost.ProductFeedUpload
-  alias FoPost.ProductSet
   alias FoPost.ReachEstimate
   alias FoPost.ReachFrequencyPrediction
   alias FoPost.ReachFrequencyResult
@@ -110,16 +96,6 @@ defmodule FoPost.Ads do
                      {:url_tags, "urlTags"},
                      {:spark_post_id, "sparkPostId"}
                    ]
-
-  @campaign_fields [
-    {:workspace_id, "workspaceId"},
-    {:connection_id, "connectionId"},
-    {:ad_account_id, "adAccountId"},
-    :name,
-    :goal,
-    :paused,
-    {:smart_plus, "smartPlus"}
-  ]
 
   @comment_fields [
     {:workspace_id, "workspaceId"},
@@ -164,35 +140,6 @@ defmodule FoPost.Ads do
                                        {:default_value_minor, "defaultValueMinor"}
                                      ]
 
-  @ad_set_fields [
-    {:workspace_id, "workspaceId"},
-    {:connection_id, "connectionId"},
-    {:campaign_id, "campaignId"},
-    {:page_id, "pageId"},
-    :name,
-    :goal,
-    :budget,
-    :targeting,
-    :paused
-  ]
-
-  @ad_set_update_fields [
-    :name,
-    :status,
-    {:budget_minor, "budgetMinor"},
-    {:end_at, "endAt"},
-    :targeting
-  ]
-
-  @network_ad_fields [
-    {:workspace_id, "workspaceId"},
-    {:connection_id, "connectionId"},
-    {:ad_set_id, "adSetId"},
-    {:creative_id, "creativeId"},
-    :name,
-    :paused
-  ]
-
   @reach_frequency_fields [
     :workspace_id,
     :connection_id,
@@ -227,23 +174,6 @@ defmodule FoPost.Ads do
     :end_at,
     :budget_value,
     :budget_value_type
-  ]
-
-  @creative_fields [
-    {:workspace_id, "workspaceId"},
-    {:connection_id, "connectionId"},
-    {:ad_account_id, "adAccountId"},
-    {:page_id, "pageId"},
-    :name,
-    :format,
-    :text,
-    :headline,
-    {:destination_url, "destinationUrl"},
-    {:call_to_action, "callToAction"},
-    {:url_tags, "urlTags"},
-    {:media_url, "mediaUrl"},
-    {:thumbnail_media_url, "thumbnailMediaUrl"},
-    :cards
   ]
 
   @page_fields [
@@ -866,199 +796,6 @@ defmodule FoPost.Ads do
   end
 
   @doc """
-  The campaigns on an ad account with their ad sets and ads, read live from Meta.
-  Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec account_tree(Client.t(), String.t(), keyword()) ::
-          {:ok, AdAccountTree.t()} | {:error, FoPost.Error.t()}
-  def account_tree(client, ad_account_id, opts) do
-    path = "/ads/accounts/" <> encode(ad_account_id) <> "/tree"
-
-    with {:ok, data} <- Client.request(client, :get, path, params: meta_params(opts)) do
-      {:ok, AdAccountTree.from_map(data)}
-    end
-  end
-
-  @doc """
-  Creates a campaign. Needs the `publish` scope as well as `ads`. Starts paused unless
-  `paused: false`.
-
-  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:name`, `:goal`
-  (`engagement`, `traffic`, `awareness`, `video_views`). Optional: `:paused`.
-  """
-  @spec create_campaign(Client.t(), keyword()) ::
-          {:ok, AdCampaign.t()} | {:error, FoPost.Error.t()}
-  def create_campaign(client, opts) do
-    body = Model.take_body(opts, @campaign_fields)
-
-    with {:ok, data} <- Client.request(client, :post, "/ads/campaigns", json: body) do
-      {:ok, AdCampaign.from_map(data)}
-    end
-  end
-
-  @doc """
-  A campaign by its Meta id. Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec get_campaign(Client.t(), String.t(), keyword()) ::
-          {:ok, AdCampaign.t()} | {:error, FoPost.Error.t()}
-  def get_campaign(client, id, opts) do
-    with {:ok, data} <- get_object(client, object_path("campaigns", id), opts) do
-      {:ok, AdCampaign.from_map(data)}
-    end
-  end
-
-  @doc """
-  Renames, pauses, or resumes a campaign. Needs the `publish` scope as well as `ads`.
-  Required: `:workspace_id`, `:connection_id`. Optional: `:name`, `:status` (`active`,
-  `paused`).
-  """
-  @spec update_campaign(Client.t(), String.t(), keyword()) ::
-          {:ok, AdCampaign.t()} | {:error, FoPost.Error.t()}
-  def update_campaign(client, id, opts) do
-    body = Model.take_body(opts, [:name, :status])
-
-    with {:ok, data} <- patch_object(client, object_path("campaigns", id), opts, body) do
-      {:ok, AdCampaign.from_map(data)}
-    end
-  end
-
-  @doc """
-  Deletes a campaign on Meta. Needs the `publish` scope as well as `ads`.
-  Required: `:workspace_id`, `:connection_id`.
-  """
-  @spec delete_campaign(Client.t(), String.t(), keyword()) ::
-          {:ok, Message.t()} | {:error, FoPost.Error.t()}
-  def delete_campaign(client, id, opts),
-    do: delete_object(client, object_path("campaigns", id), opts)
-
-  @doc """
-  Copies a campaign on Meta; answers the copy's Meta id. Needs the `publish` scope as
-  well as `ads`. Required: `:workspace_id`, `:connection_id`. Optional: `:paused`.
-  """
-  @spec duplicate_campaign(Client.t(), String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def duplicate_campaign(client, id, opts),
-    do: duplicate_object(client, object_path("campaigns", id), opts)
-
-  @doc """
-  Creates an ad set in a campaign. Needs the `publish` scope as well as `ads`. Starts
-  paused unless `paused: false`.
-
-  Required: `:workspace_id`, `:connection_id`, `:campaign_id`, `:page_id`, `:name`,
-  `:goal`, `:budget`, `:targeting`. Optional: `:paused`.
-  """
-  @spec create_ad_set(Client.t(), keyword()) :: {:ok, AdSet.t()} | {:error, FoPost.Error.t()}
-  def create_ad_set(client, opts) do
-    body = Model.take_body(opts, @ad_set_fields)
-
-    with {:ok, data} <- Client.request(client, :post, "/ads/ad-sets", json: body) do
-      {:ok, AdSet.from_map(data)}
-    end
-  end
-
-  @doc """
-  An ad set by its Meta id. Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec get_ad_set(Client.t(), String.t(), keyword()) ::
-          {:ok, AdSet.t()} | {:error, FoPost.Error.t()}
-  def get_ad_set(client, id, opts) do
-    with {:ok, data} <- get_object(client, object_path("ad-sets", id), opts) do
-      {:ok, AdSet.from_map(data)}
-    end
-  end
-
-  @doc """
-  Updates an ad set. Needs the `publish` scope as well as `ads`. Required:
-  `:workspace_id`, `:connection_id`. Optional: `:name`, `:status`, `:budget_minor`,
-  `:end_at`, `:targeting`.
-  """
-  @spec update_ad_set(Client.t(), String.t(), keyword()) ::
-          {:ok, AdSet.t()} | {:error, FoPost.Error.t()}
-  def update_ad_set(client, id, opts) do
-    body = Model.take_body(opts, @ad_set_update_fields)
-
-    with {:ok, data} <- patch_object(client, object_path("ad-sets", id), opts, body) do
-      {:ok, AdSet.from_map(data)}
-    end
-  end
-
-  @doc """
-  Deletes an ad set on Meta. Needs the `publish` scope as well as `ads`.
-  Required: `:workspace_id`, `:connection_id`.
-  """
-  @spec delete_ad_set(Client.t(), String.t(), keyword()) ::
-          {:ok, Message.t()} | {:error, FoPost.Error.t()}
-  def delete_ad_set(client, id, opts), do: delete_object(client, object_path("ad-sets", id), opts)
-
-  @doc """
-  Copies an ad set on Meta; answers the copy's Meta id. Needs the `publish` scope as
-  well as `ads`. Required: `:workspace_id`, `:connection_id`. Optional: `:paused`.
-  """
-  @spec duplicate_ad_set(Client.t(), String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def duplicate_ad_set(client, id, opts),
-    do: duplicate_object(client, object_path("ad-sets", id), opts)
-
-  @doc """
-  Creates an ad inside an ad set from an existing creative (unlike `create/2`). Needs the
-  `publish` scope as well as `ads`. Starts paused unless `paused: false`.
-
-  Required: `:workspace_id`, `:connection_id`, `:ad_set_id`, `:creative_id`, `:name`.
-  Optional: `:paused`.
-  """
-  @spec create_network_ad(Client.t(), keyword()) ::
-          {:ok, NetworkAd.t()} | {:error, FoPost.Error.t()}
-  def create_network_ad(client, opts) do
-    body = Model.take_body(opts, @network_ad_fields)
-
-    with {:ok, data} <- Client.request(client, :post, "/ads/ads", json: body) do
-      {:ok, NetworkAd.from_map(data)}
-    end
-  end
-
-  @doc """
-  An ad by its Meta id. Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec get_network_ad(Client.t(), String.t(), keyword()) ::
-          {:ok, NetworkAd.t()} | {:error, FoPost.Error.t()}
-  def get_network_ad(client, id, opts) do
-    with {:ok, data} <- get_object(client, object_path("ads", id), opts) do
-      {:ok, NetworkAd.from_map(data)}
-    end
-  end
-
-  @doc """
-  Updates an ad. Needs the `publish` scope as well as `ads`. Required: `:workspace_id`,
-  `:connection_id`. Optional: `:name`, `:status`, `:creative_id`.
-  """
-  @spec update_network_ad(Client.t(), String.t(), keyword()) ::
-          {:ok, NetworkAd.t()} | {:error, FoPost.Error.t()}
-  def update_network_ad(client, id, opts) do
-    body = Model.take_body(opts, [:name, :status, {:creative_id, "creativeId"}])
-
-    with {:ok, data} <- patch_object(client, object_path("ads", id), opts, body) do
-      {:ok, NetworkAd.from_map(data)}
-    end
-  end
-
-  @doc """
-  Deletes an ad on Meta. Needs the `publish` scope as well as `ads`.
-  Required: `:workspace_id`, `:connection_id`.
-  """
-  @spec delete_network_ad(Client.t(), String.t(), keyword()) ::
-          {:ok, Message.t()} | {:error, FoPost.Error.t()}
-  def delete_network_ad(client, id, opts), do: delete_object(client, object_path("ads", id), opts)
-
-  @doc """
-  Copies an ad on Meta; answers the copy's Meta id. Needs the `publish` scope as well as
-  `ads`. Required: `:workspace_id`, `:connection_id`. Optional: `:paused`.
-  """
-  @spec duplicate_network_ad(Client.t(), String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def duplicate_network_ad(client, id, opts),
-    do: duplicate_object(client, object_path("ads", id), opts)
-
-  @doc """
   Pauses or activates many objects at once. Needs the `publish` scope as well as `ads`.
 
   Required: `:workspace_id`, `:connection_id`, `:status` (`active`, `paused`),
@@ -1079,58 +816,6 @@ defmodule FoPost.Ads do
       {:ok, Model.list(BulkAdStatusResult, data)}
     end
   end
-
-  @doc """
-  The creatives on an ad account. Required: `:connection_id`, `:ad_account_id`.
-  Optional: `:workspace_id`.
-  """
-  @spec creatives(Client.t(), keyword()) ::
-          {:ok, [AdCreative.t()]} | {:error, FoPost.Error.t()}
-  def creatives(client, opts) do
-    params = Model.take_params(opts, [:workspace_id, :connection_id, :ad_account_id])
-
-    with {:ok, data} <- Client.request(client, :get, "/ads/creatives", params: params) do
-      {:ok, Model.list(AdCreative, creatives_list(data))}
-    end
-  end
-
-  @doc """
-  Creates a creative.
-
-  Required: `:workspace_id`, `:connection_id`, `:ad_account_id`, `:page_id`, `:name`,
-  `:format` (`image`, `video`, `carousel`), `:text`. Optional: `:headline`,
-  `:destination_url`, `:call_to_action`, `:url_tags`, `:media_url`,
-  `:thumbnail_media_url`, `:cards` (a carousel's maps of `mediaUrl`, `destinationUrl`,
-  `headline`, `description`).
-  """
-  @spec create_creative(Client.t(), keyword()) ::
-          {:ok, AdCreative.t()} | {:error, FoPost.Error.t()}
-  def create_creative(client, opts) do
-    body = Model.take_body(opts, @creative_fields)
-
-    with {:ok, data} <- Client.request(client, :post, "/ads/creatives", json: body) do
-      {:ok, AdCreative.from_map(data)}
-    end
-  end
-
-  @doc """
-  A creative by its Meta id. Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec get_creative(Client.t(), String.t(), keyword()) ::
-          {:ok, AdCreative.t()} | {:error, FoPost.Error.t()}
-  def get_creative(client, id, opts) do
-    with {:ok, data} <- get_object(client, object_path("creatives", id), opts) do
-      {:ok, AdCreative.from_map(data)}
-    end
-  end
-
-  @doc """
-  Deletes a creative. Required: `:workspace_id`, `:connection_id`.
-  """
-  @spec delete_creative(Client.t(), String.t(), keyword()) ::
-          {:ok, Message.t()} | {:error, FoPost.Error.t()}
-  def delete_creative(client, id, opts),
-    do: delete_object(client, object_path("creatives", id), opts)
 
   @doc """
   An audience by its Meta id. Required: `:connection_id`. Optional: `:workspace_id`.
@@ -1664,72 +1349,8 @@ defmodule FoPost.Ads do
   @doc "Same as `leads/3`, but raises `FoPost.Error`."
   def leads!(client, form_id, opts), do: Result.unwrap!(leads(client, form_id, opts))
 
-  @doc "Same as `account_tree/3`, but raises `FoPost.Error`."
-  def account_tree!(client, id, opts), do: Result.unwrap!(account_tree(client, id, opts))
-
-  @doc "Same as `create_campaign/2`, but raises `FoPost.Error`."
-  def create_campaign!(client, opts), do: Result.unwrap!(create_campaign(client, opts))
-
-  @doc "Same as `get_campaign/3`, but raises `FoPost.Error`."
-  def get_campaign!(client, id, opts), do: Result.unwrap!(get_campaign(client, id, opts))
-
-  @doc "Same as `update_campaign/3`, but raises `FoPost.Error`."
-  def update_campaign!(client, id, opts), do: Result.unwrap!(update_campaign(client, id, opts))
-
-  @doc "Same as `delete_campaign/3`, but raises `FoPost.Error`."
-  def delete_campaign!(client, id, opts), do: Result.unwrap!(delete_campaign(client, id, opts))
-
-  @doc "Same as `duplicate_campaign/3`, but raises `FoPost.Error`."
-  def duplicate_campaign!(client, id, opts),
-    do: Result.unwrap!(duplicate_campaign(client, id, opts))
-
-  @doc "Same as `create_ad_set/2`, but raises `FoPost.Error`."
-  def create_ad_set!(client, opts), do: Result.unwrap!(create_ad_set(client, opts))
-
-  @doc "Same as `get_ad_set/3`, but raises `FoPost.Error`."
-  def get_ad_set!(client, id, opts), do: Result.unwrap!(get_ad_set(client, id, opts))
-
-  @doc "Same as `update_ad_set/3`, but raises `FoPost.Error`."
-  def update_ad_set!(client, id, opts), do: Result.unwrap!(update_ad_set(client, id, opts))
-
-  @doc "Same as `delete_ad_set/3`, but raises `FoPost.Error`."
-  def delete_ad_set!(client, id, opts), do: Result.unwrap!(delete_ad_set(client, id, opts))
-
-  @doc "Same as `duplicate_ad_set/3`, but raises `FoPost.Error`."
-  def duplicate_ad_set!(client, id, opts), do: Result.unwrap!(duplicate_ad_set(client, id, opts))
-
-  @doc "Same as `create_network_ad/2`, but raises `FoPost.Error`."
-  def create_network_ad!(client, opts), do: Result.unwrap!(create_network_ad(client, opts))
-
-  @doc "Same as `get_network_ad/3`, but raises `FoPost.Error`."
-  def get_network_ad!(client, id, opts), do: Result.unwrap!(get_network_ad(client, id, opts))
-
-  @doc "Same as `update_network_ad/3`, but raises `FoPost.Error`."
-  def update_network_ad!(client, id, opts),
-    do: Result.unwrap!(update_network_ad(client, id, opts))
-
-  @doc "Same as `delete_network_ad/3`, but raises `FoPost.Error`."
-  def delete_network_ad!(client, id, opts),
-    do: Result.unwrap!(delete_network_ad(client, id, opts))
-
-  @doc "Same as `duplicate_network_ad/3`, but raises `FoPost.Error`."
-  def duplicate_network_ad!(client, id, opts),
-    do: Result.unwrap!(duplicate_network_ad(client, id, opts))
-
   @doc "Same as `bulk_set_status/2`, but raises `FoPost.Error`."
   def bulk_set_status!(client, opts), do: Result.unwrap!(bulk_set_status(client, opts))
-
-  @doc "Same as `creatives/2`, but raises `FoPost.Error`."
-  def creatives!(client, opts), do: Result.unwrap!(creatives(client, opts))
-
-  @doc "Same as `create_creative/2`, but raises `FoPost.Error`."
-  def create_creative!(client, opts), do: Result.unwrap!(create_creative(client, opts))
-
-  @doc "Same as `get_creative/3`, but raises `FoPost.Error`."
-  def get_creative!(client, id, opts), do: Result.unwrap!(get_creative(client, id, opts))
-
-  @doc "Same as `delete_creative/3`, but raises `FoPost.Error`."
-  def delete_creative!(client, id, opts), do: Result.unwrap!(delete_creative(client, id, opts))
 
   @doc "Same as `get_audience/3`, but raises `FoPost.Error`."
   def get_audience!(client, id, opts), do: Result.unwrap!(get_audience(client, id, opts))
@@ -1846,18 +1467,6 @@ defmodule FoPost.Ads do
     end
   end
 
-  defp duplicate_object(client, path, opts) do
-    body = Model.take_body(opts, [:paused])
-
-    with {:ok, data} <-
-           Client.request(client, :post, path <> "/duplicate",
-             params: meta_params(opts),
-             json: body
-           ) do
-      {:ok, id(data)}
-    end
-  end
-
   # ─── Goals ──────────────────────────────────────────────────────
 
   @doc """
@@ -1873,228 +1482,6 @@ defmodule FoPost.Ads do
       {:ok, if(is_list(data), do: data, else: [])}
     end
   end
-
-  # ─── Product catalogs ───────────────────────────────────────────
-
-  @doc """
-  Catalogs the connection's business portfolios reach, read live and never stored.
-
-  Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec catalogs(Client.t(), keyword()) ::
-          {:ok, [ProductCatalog.t()]} | {:error, FoPost.Error.t()}
-  def catalogs(client, opts) do
-    with {:ok, data} <- Client.request(client, :get, "/ads/catalogs", params: meta_params(opts)) do
-      {:ok, Model.list(ProductCatalog, catalogs_list(data))}
-    end
-  end
-
-  @doc """
-  Creates a catalog on the connection's business portfolio. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`, `:name`. Optional: `:vertical`.
-  """
-  @spec create_catalog(Client.t(), keyword()) ::
-          {:ok, ProductCatalog.t()} | {:error, FoPost.Error.t()}
-  def create_catalog(client, opts) do
-    body = Model.take_body(opts, [:workspace_id, :connection_id, :name, :vertical])
-
-    with {:ok, data} <- Client.request(client, :post, "/ads/catalogs", json: body) do
-      {:ok, ProductCatalog.from_map(data)}
-    end
-  end
-
-  @doc """
-  A catalog by its id. Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec get_catalog(Client.t(), String.t(), keyword()) ::
-          {:ok, ProductCatalog.t()} | {:error, FoPost.Error.t()}
-  def get_catalog(client, id, opts) do
-    with {:ok, data} <- get_object(client, catalog_path(id), opts) do
-      {:ok, ProductCatalog.from_map(data)}
-    end
-  end
-
-  @doc """
-  Renames a catalog. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`, `:name`.
-  """
-  @spec update_catalog(Client.t(), String.t(), keyword()) ::
-          {:ok, ProductCatalog.t()} | {:error, FoPost.Error.t()}
-  def update_catalog(client, id, opts) do
-    body = Model.take_body(opts, [:workspace_id, :connection_id, :name])
-
-    with {:ok, data} <- patch_object(client, catalog_path(id), opts, body) do
-      {:ok, ProductCatalog.from_map(data)}
-    end
-  end
-
-  @doc """
-  Deletes a catalog with every product, feed, and set in it. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`.
-  """
-  @spec delete_catalog(Client.t(), String.t(), keyword()) ::
-          {:ok, Message.t()} | {:error, FoPost.Error.t()}
-  def delete_catalog(client, id, opts), do: delete_object(client, catalog_path(id), opts)
-
-  @doc """
-  One page of a catalog's products. Pass `:next_cursor` back as `:after`.
-
-  Required: `:connection_id`. Optional: `:workspace_id`, `:after`.
-  """
-  @spec catalog_products(Client.t(), String.t(), keyword()) ::
-          {:ok, CatalogProductsPage.t()} | {:error, FoPost.Error.t()}
-  def catalog_products(client, id, opts) do
-    params = Model.take_params(opts, [:workspace_id, :connection_id, :after])
-
-    with {:ok, data} <-
-           Client.request(client, :get, catalog_path(id) <> "/products", params: params) do
-      {:ok, CatalogProductsPage.from_map(data)}
-    end
-  end
-
-  @doc """
-  Up to 500 product upserts and deletes in one batch, keyed by your own retailer
-  id. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`, `:products`. Each product is a map
-  with `op` of `"upsert"` or `"delete"` plus `retailerId`; an upsert also carries
-  `name`, `url`, `imageUrl`, `priceMinor`, and `currency`.
-  """
-  @spec write_catalog_products(Client.t(), String.t(), keyword()) ::
-          {:ok, CatalogBatchResult.t()} | {:error, FoPost.Error.t()}
-  def write_catalog_products(client, id, opts) do
-    body = Model.take_body(opts, [:workspace_id, :connection_id, :products])
-
-    with {:ok, data} <-
-           Client.request(client, :post, catalog_path(id) <> "/products", json: body) do
-      {:ok, CatalogBatchResult.from_map(data)}
-    end
-  end
-
-  @doc """
-  A catalog's feeds. Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec product_feeds(Client.t(), String.t(), keyword()) ::
-          {:ok, [ProductFeed.t()]} | {:error, FoPost.Error.t()}
-  def product_feeds(client, id, opts) do
-    with {:ok, data} <- get_object_list(client, catalog_path(id) <> "/feeds", opts) do
-      {:ok, Model.list(ProductFeed, data)}
-    end
-  end
-
-  @doc """
-  Creates a product feed. A `:schedule` needs a `:url`. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`, `:name`. Optional: `:url`,
-  `:schedule` (`"HOURLY"`, `"DAILY"`, or `"WEEKLY"`).
-  """
-  @spec create_product_feed(Client.t(), String.t(), keyword()) ::
-          {:ok, ProductFeed.t()} | {:error, FoPost.Error.t()}
-  def create_product_feed(client, id, opts) do
-    body = Model.take_body(opts, [:workspace_id, :connection_id, :name, :url, :schedule])
-
-    with {:ok, data} <- Client.request(client, :post, catalog_path(id) <> "/feeds", json: body) do
-      {:ok, ProductFeed.from_map(data)}
-    end
-  end
-
-  @doc """
-  Deletes a product feed. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`.
-  """
-  @spec delete_product_feed(Client.t(), String.t(), String.t(), keyword()) ::
-          {:ok, Message.t()} | {:error, FoPost.Error.t()}
-  def delete_product_feed(client, id, feed_id, opts),
-    do: delete_object(client, feed_path(id, feed_id), opts)
-
-  @doc """
-  Each run the ad platform made of a feed.
-
-  Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec feed_uploads(Client.t(), String.t(), String.t(), keyword()) ::
-          {:ok, [ProductFeedUpload.t()]} | {:error, FoPost.Error.t()}
-  def feed_uploads(client, id, feed_id, opts) do
-    with {:ok, data} <- get_object_list(client, feed_path(id, feed_id) <> "/uploads", opts) do
-      {:ok, Model.list(ProductFeedUpload, data)}
-    end
-  end
-
-  @doc """
-  Fetches a feed now and answers the id of the run. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`. Optional: `:url`, which overrides
-  the feed's own url for this run.
-  """
-  @spec start_feed_upload(Client.t(), String.t(), String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, FoPost.Error.t()}
-  def start_feed_upload(client, id, feed_id, opts) do
-    body = Model.take_body(opts, [:workspace_id, :connection_id, :url])
-
-    with {:ok, data} <-
-           Client.request(client, :post, feed_path(id, feed_id) <> "/uploads", json: body) do
-      {:ok, id(data)}
-    end
-  end
-
-  @doc """
-  A catalog's product sets. A catalog ad runs from a set, not the whole catalog.
-
-  Required: `:connection_id`. Optional: `:workspace_id`.
-  """
-  @spec product_sets(Client.t(), String.t(), keyword()) ::
-          {:ok, [ProductSet.t()]} | {:error, FoPost.Error.t()}
-  def product_sets(client, id, opts) do
-    with {:ok, data} <- get_object_list(client, catalog_path(id) <> "/product-sets", opts) do
-      {:ok, Model.list(ProductSet, data)}
-    end
-  end
-
-  @doc """
-  Creates a product set. Without a `:filter` the set is the whole catalog.
-  Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`, `:name`. Optional: `:filter`.
-  """
-  @spec create_product_set(Client.t(), String.t(), keyword()) ::
-          {:ok, ProductSet.t()} | {:error, FoPost.Error.t()}
-  def create_product_set(client, id, opts) do
-    body = Model.take_body(opts, [:workspace_id, :connection_id, :name, :filter])
-
-    with {:ok, data} <-
-           Client.request(client, :post, catalog_path(id) <> "/product-sets", json: body) do
-      {:ok, ProductSet.from_map(data)}
-    end
-  end
-
-  @doc """
-  Renames or refilters a product set. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`, `:name`. Optional: `:filter`.
-  """
-  @spec update_product_set(Client.t(), String.t(), String.t(), keyword()) ::
-          {:ok, ProductSet.t()} | {:error, FoPost.Error.t()}
-  def update_product_set(client, id, set_id, opts) do
-    body = Model.take_body(opts, [:workspace_id, :connection_id, :name, :filter])
-
-    with {:ok, data} <- patch_object(client, product_set_path(id, set_id), opts, body) do
-      {:ok, ProductSet.from_map(data)}
-    end
-  end
-
-  @doc """
-  Deletes a product set. Also needs `publish`.
-
-  Required: `:workspace_id`, `:connection_id`.
-  """
-  @spec delete_product_set(Client.t(), String.t(), String.t(), keyword()) ::
-          {:ok, Message.t()} | {:error, FoPost.Error.t()}
-  def delete_product_set(client, id, set_id, opts),
-    do: delete_object(client, product_set_path(id, set_id), opts)
 
   # ─── Reach and frequency ────────────────────────────────────────
 
@@ -2164,34 +1551,6 @@ defmodule FoPost.Ads do
           {:ok, ReachFrequencyPrediction.t()} | {:error, FoPost.Error.t()}
   def cancel_reach_frequency(client, id, opts),
     do: reach_frequency_action(client, id, "cancel", opts)
-
-  # ─── Ad Library ─────────────────────────────────────────────────
-
-  @doc """
-  The public ad archive: ads anyone is running, by keyword or by Page.
-
-  Read live on every call and stored nowhere, so an ad that stops running is
-  simply absent from the next search.
-
-  Required: `:connection_id`, `:countries` (a list of two-letter codes the ad
-  reached). Optional: `:workspace_id`, `:q`, `:page_ids`, `:active_status`
-  (`"ACTIVE"`, `"INACTIVE"`, or `"ALL"`), `:limit`, `:after`.
-  """
-  @spec library(Client.t(), keyword()) ::
-          {:ok, AdLibraryPage.t()} | {:error, FoPost.Error.t()}
-  def library(client, opts) do
-    # `take_params/2` answers a keyword list of wire keys, so the two joined
-    # lists are appended in the same shape rather than put into a map.
-    params =
-      opts
-      |> Model.take_params([:workspace_id, :connection_id, :q, :active_status, :limit, :after])
-      |> Kernel.++([{"countries", Enum.join(List.wrap(opts[:countries]), ",")}])
-      |> put_joined("page_ids", opts[:page_ids])
-
-    with {:ok, data} <- Client.request(client, :get, "/ads/library", params: params) do
-      {:ok, AdLibraryPage.from_map(data)}
-    end
-  end
 
   # ─── Partnership ads ────────────────────────────────────────────
 
@@ -2502,27 +1861,6 @@ defmodule FoPost.Ads do
   @doc "Same as `goals/2`, but raises `FoPost.Error`."
   def goals!(client, opts), do: Result.unwrap!(goals(client, opts))
 
-  @doc "Same as `catalogs/2`, but raises `FoPost.Error`."
-  def catalogs!(client, opts), do: Result.unwrap!(catalogs(client, opts))
-
-  @doc "Same as `create_catalog/2`, but raises `FoPost.Error`."
-  def create_catalog!(client, opts), do: Result.unwrap!(create_catalog(client, opts))
-
-  @doc "Same as `catalog_products/3`, but raises `FoPost.Error`."
-  def catalog_products!(client, id, opts),
-    do: Result.unwrap!(catalog_products(client, id, opts))
-
-  @doc "Same as `write_catalog_products/3`, but raises `FoPost.Error`."
-  def write_catalog_products!(client, id, opts),
-    do: Result.unwrap!(write_catalog_products(client, id, opts))
-
-  @doc "Same as `product_sets/3`, but raises `FoPost.Error`."
-  def product_sets!(client, id, opts), do: Result.unwrap!(product_sets(client, id, opts))
-
-  @doc "Same as `create_product_set/3`, but raises `FoPost.Error`."
-  def create_product_set!(client, id, opts),
-    do: Result.unwrap!(create_product_set(client, id, opts))
-
   @doc "Same as `create_reach_frequency/2`, but raises `FoPost.Error`."
   def create_reach_frequency!(client, opts),
     do: Result.unwrap!(create_reach_frequency(client, opts))
@@ -2530,9 +1868,6 @@ defmodule FoPost.Ads do
   @doc "Same as `reserve_reach_frequency/3`, but raises `FoPost.Error`."
   def reserve_reach_frequency!(client, id, opts),
     do: Result.unwrap!(reserve_reach_frequency(client, id, opts))
-
-  @doc "Same as `library/2`, but raises `FoPost.Error`."
-  def library!(client, opts), do: Result.unwrap!(library(client, opts))
 
   @doc "Same as `partnership_creators/2`, but raises `FoPost.Error`."
   def partnership_creators!(client, opts),
@@ -2550,12 +1885,6 @@ defmodule FoPost.Ads do
     end
   end
 
-  defp get_object_list(client, path, opts) do
-    with {:ok, data} <- Client.request(client, :get, path, params: meta_params(opts)) do
-      {:ok, if(is_list(data), do: data, else: [])}
-    end
-  end
-
   defp delete_account_object(client, path, opts) do
     with {:ok, data} <- Client.request(client, :delete, path, params: account_params(opts)) do
       {:ok, Message.from_map(data)}
@@ -2565,27 +1894,11 @@ defmodule FoPost.Ads do
   defp account_params(opts),
     do: Model.take_params(opts, [:workspace_id, :connection_id, :ad_account_id])
 
-  defp put_joined(params, _key, nil), do: params
-  defp put_joined(params, _key, []), do: params
-  defp put_joined(params, key, values), do: params ++ [{key, Enum.join(values, ",")}]
-
-  defp catalogs_list(%{"catalogs" => catalogs}) when is_list(catalogs), do: catalogs
-  defp catalogs_list(_data), do: []
-
-  defp catalog_path(id), do: "/ads/catalogs/" <> encode(id)
-
-  defp feed_path(id, feed_id), do: catalog_path(id) <> "/feeds/" <> encode(feed_id)
-
-  defp product_set_path(id, set_id), do: catalog_path(id) <> "/product-sets/" <> encode(set_id)
-
   defp prediction_path(id), do: "/ads/reach-frequency/" <> encode(id)
 
   defp label_path(id), do: "/ads/account/labels/" <> encode(id)
 
   defp study_path(id), do: "/ads/account/studies/" <> encode(id)
-
-  defp creatives_list(%{"creatives" => creatives}), do: creatives
-  defp creatives_list(_data), do: []
 
   defp added(%{"added" => added}) when is_integer(added), do: added
   defp added(_data), do: 0
